@@ -39,6 +39,7 @@ There are two ways to see your changes:
 | Load the current file into the REPL | `Ctrl+Alt+C Enter` (Calva: Load/Evaluate Current File and its Requires/Dependencies) |
 | Evaluate the form your cursor is in | `Alt+Enter` (Calva: Evaluate Top Level Form) |
 | Evaluate just the innermost form | `Ctrl+Enter` (Calva: Evaluate Current Form) |
+| See the HTML a component turns into | evaluate `(c/print-html [my-component])`; it appears in Calva's REPL output window |
 
 On a Mac, use `Ctrl+Option+C Enter` and `Option+Enter`. If a shortcut doesn't
 work in the browser, use the Command Palette instead.
@@ -75,7 +76,7 @@ Example solutions to the homework are on the `solutions` branch, in
 touching your own work, run:
 
 ```bash
-git fetch origin solutions && git checkout origin/solutions -- src/main/scratchpad/solutions
+git fetch origin solutions && git checkout FETCH_HEAD -- src/main/scratchpad/solutions
 ```
 
 Then open those files, load them into the REPL, and compare them with yours.

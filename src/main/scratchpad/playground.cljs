@@ -64,6 +64,15 @@
   ;; Hiccup is just data: evaluate a component and look at what it returns
   (header)
 
+  ;; ...and see the HTML it turns into. print-html shows it in Calva's REPL
+  ;; output window; html returns it as a string.
+  (c/print-html [header])
+  (c/print-html [c/card {:title "KPC-3"} [c/paragraph "A carbapenemase gene."]])
+  (c/html [:p "Hello"])
+  ;; Notice :on-click doesn't appear in the HTML: React attaches event
+  ;; handlers with JavaScript instead.
+  (c/print-html [c/button {:on-click (fn [] (js/alert "Hi"))} "Click"])
+
   ;; Components need saving to show up on the page. If you've re-defined one
   ;; at the REPL instead, this redraws the page:
   (scratchpad.main/render)
