@@ -126,18 +126,33 @@
                            (js/setTimeout #(reset! copied? false) 1500))}
      (if @copied? "Copied!" "Copy")]))
 
+(defn- small-label [text]
+  [:div {:style {:font-size "12px" :color "#57606a" :margin "8px 0 4px 0"}} text])
+
 (defn- example-card [{:keys [title description code view]}]
-  [c/card
-   [c/row {:align "center" :style {:justify-content "space-between"}}
-    [:code {:style {:font-size "16px" :font-weight "bold"}} title]
-    [copy-button code]]
-   [c/paragraph {:style {:color "#57606a" :margin "4px 0 12px 0"}} description]
-   [:div {:style {:padding "12px"
-                  :margin-bottom "12px"
-                  :border "1px dashed #d0d7de"
-                  :border-radius "6px"}}
-    [ui/error-boundary view]]
-   [c/code-block code]])
+  (r/with-let [show-html? (r/atom false)]
+    [c/card
+     [c/row {:align "center" :style {:justify-content "space-between"}}
+      [:code {:style {:font-size "16px" :font-weight "bold"}} title]
+      [c/row {:gap "4px"}
+       [c/button {:variant :secondary
+                  :style {:padding "2px 8px" :font-size "12px"}
+                  :on-click (fn [] (swap! show-html? not))}
+        (if @show-html? "Hide HTML" "Show HTML")]
+       [copy-button code]]]
+     [c/paragraph {:style {:color "#57606a" :margin "4px 0 12px 0"}} description]
+     [:div {:style {:padding "12px"
+                    :margin-bottom "12px"
+                    :border "1px dashed #d0d7de"
+                    :border-radius "6px"}}
+      [ui/error-boundary view]]
+     (if @show-html?
+       [:<>
+        [small-label "Hiccup (ClojureScript)"]
+        [c/code-block code]
+        [small-label "HTML it turns into"]
+        [c/code-block (c/html view)]]
+       [c/code-block code])]))
 
 (defn page []
   [c/page {:max-width "1200px"}
@@ -149,7 +164,9 @@
     " part of the " [:code "ns"] " form at the top - playground.cljs already has it."]
    [c/paragraph
     "Want to see how one works, or change it? They're all in "
-    [:code "src/main/scratchpad/components.cljs"] "."]
+    [:code "src/main/scratchpad/components.cljs"] ". Click " [:strong "Show HTML"]
+    " to see the HTML an example turns into - or try "
+    [:code "(c/print-html [c/card \"Hi\"])"] " at the REPL."]
    (for [{:keys [title examples]} sections]
      ^{:key title}
      [c/section {:title title}

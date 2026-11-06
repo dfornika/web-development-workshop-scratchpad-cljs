@@ -11,10 +11,16 @@
   their default styles, so you can tweak how they look.
 
   Browse them all (with copy-able examples) on the Components page.
+
+  To see the HTML any hiccup turns into, use `c/print-html` (or `c/html`
+  for a string) at the REPL:
+
+      (c/print-html [c/card {:title \"Hello\"} \"Some text\"])
   To use them in your own file, add this to your `ns` form:
 
       (:require [scratchpad.components :as c])"
   (:require [clojure.string :as str]
+            [reagent.dom.server :as rdom-server]
             [scratchpad.state :refer [db]]))
 
 (defn- split-props
@@ -73,7 +79,9 @@
   [& args]
   (let [[{:keys [columns gap style] :or {columns 3 gap "16px"}} children] (split-props args)]
     (into [:div {:style (merge {:display "grid"
-                                :grid-template-columns (str "repeat(" columns ", 1fr)")
+                                ;; minmax(0, 1fr) rather than 1fr, so wide content (like long code)
+                                ;; scrolls inside its cell instead of stretching the grid
+                                :grid-template-columns (str "repeat(" columns ", minmax(0, 1fr))")
                                 :gap gap}
                                style)}]
           children)))
@@ -412,6 +420,78 @@
                     :height "100%"
                     :background-color color
                     :border-radius "4px"}}]]))
+
+
+;; ---------------------------------------------------------------------------
+;; Tools: see the HTML behind your hiccup
+;; ---------------------------------------------------------------------------
+
+(def ^:private void-elements
+  "Elements that never have children or a closing tag."
+  #{"area" "base" "br" "col" "embed" "hr" "img" "input" "link" "meta" "source" "track" "wbr"})
+
+(defn- escape-html [s]
+  (-> s
+      (str/replace "&" "&amp;")
+      (str/replace "<" "&lt;")
+      (str/replace ">" "&gt;")))
+
+(defn- format-node
+  "Turn a DOM node into indented HTML lines."
+  [node depth]
+  (let [indent (apply str (repeat depth "  "))]
+    (case (.-nodeType node)
+      ;; text: skip whitespace-only text between tags
+      3 (let [text (str/trim (.-textContent node))]
+          (when (seq text)
+            [(str indent (escape-html text))]))
+      ;; element
+      1 (let [tag (str/lower-case (.-tagName node))
+              attrs (apply str (for [attr (array-seq (.-attributes node))]
+                                 (str " " (.-name attr) "=\"" (str/replace (.-value attr) "\"" "&quot;") "\"")))
+              open (str indent "<" tag attrs ">")
+              close (str "</" tag ">")
+              children (array-seq (.-childNodes node))]
+          (cond
+            (contains? void-elements tag)
+            [open]
+
+            ;; only text inside (or nothing): keep it on one line, e.g. <h3>KPC-3</h3>
+            (every? #(= 3 (.-nodeType %)) children)
+            [(str open (escape-html (str/trim (.-textContent node))) close)]
+
+            :else
+            (concat [open]
+                    (mapcat #(format-node % (inc depth)) children)
+                    [(str indent close)])))
+      ;; anything else (e.g. comments): skip it
+      nil)))
+
+(defn html
+  "Returns the HTML for some hiccup, as a nicely indented string.
+
+      (c/html [c/card {:title \"Hi\"} \"There\"])
+
+  Works with plain hiccup like [:p \"text\"] and with components."
+  [hiccup]
+  (let [markup (rdom-server/render-to-static-markup hiccup)
+        template (.createElement js/document "template")]
+    (set! (.-innerHTML template) markup)
+    ;; React adds <link rel="preload"> tags for images to speed up page
+    ;; loads. They're not part of your component, so leave them out.
+    (doseq [preload (array-seq (.querySelectorAll (.-content template) "link[rel=preload]"))]
+      (.remove preload))
+    (str/join "\n" (mapcat #(format-node % 0)
+                           (array-seq (.. template -content -childNodes))))))
+
+(defn print-html
+  "Prints the HTML for some hiccup. Easier to read at the REPL than `html`,
+  since the line breaks show up properly. The output appears in Calva's
+  REPL output window.
+
+      (c/print-html [c/card {:title \"Hi\"} \"There\"])"
+  [hiccup]
+  (println (html hiccup)))
 
 
 ;; ---------------------------------------------------------------------------
