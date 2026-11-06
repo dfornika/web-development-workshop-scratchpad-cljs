@@ -75,7 +75,7 @@ Example solutions to the homework are on the `solutions` branch, in
 touching your own work, run:
 
 ```bash
-git fetch origin solutions && git checkout origin/solutions -- src/main/scratchpad/solutions
+git fetch origin solutions && git checkout FETCH_HEAD -- src/main/scratchpad/solutions
 ```
 
 Then open those files, load them into the REPL, and compare them with yours.
