@@ -1,6 +1,5 @@
 (ns scratchpad.app
-  (:require [scratchpad.components :as components]
-            [scratchpad.state :refer [db]]))
+  (:require [scratchpad.components :as components]))
 
 (defn app
   "Top-level app component."

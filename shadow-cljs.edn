@@ -3,7 +3,6 @@
  :builds {:app {:target :browser
                 :output-dir "resources/public/js"
                 :asset-path "/js"
-                :devtools {:devtools-url "DEVTOOLS_URL_PLACEHOLDER"}
                 :modules {:main
                           {:init-fn scratchpad.main/init}}
                 :build-hooks [(shadow.cljs.build-report/hook {:output-to "build-reports/report.html"})]

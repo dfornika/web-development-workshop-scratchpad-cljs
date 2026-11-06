@@ -17,12 +17,14 @@
 
 
 (defn layout-0
-  ""
+  "Minimal page layout: wraps `children` in a single div."
   [children]
   [:div children])
 
 (defn config-view
+  "Read-only view of the config loaded from config.json."
   []
   [:div
-   [:textarea {:style {:font-family  "monospace"}}
-    (str (:config @db))]])
+   [:textarea {:style {:font-family "monospace"}
+               :read-only true
+               :value (str (:config @db))}]])

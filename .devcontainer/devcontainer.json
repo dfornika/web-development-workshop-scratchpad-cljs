@@ -4,16 +4,27 @@
     "dockerfile": "Dockerfile.dev"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-  "security.workspace.trust.banner": "never",
-  "security.workspace.trust.emptyWindow": true,
-  "security.workspace.trust.enabled": false,
   // More info: https://containers.dev/features.
-  "features": {},
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   "forwardPorts": [
     8000,
     9630
   ],
+  "portsAttributes": {
+    "8000": {
+      "label": "Web app",
+      "onAutoForward": "openBrowser"
+    },
+    "9630": {
+      "label": "shadow-cljs (dev tools / hot reload)",
+      "onAutoForward": "silent"
+    }
+  },
   // Run commands on cluster first start. Useful for download dependencies, etc.
   "postCreateCommand": "./scripts/post-create.sh",
   // Copy host env vars into the devcontainer.  You can also refer to some_file.env files in your docker or docker-compose setup.
@@ -24,24 +35,9 @@
         "betterthantomorrow.calva"
       ],
       "settings": {
-        "calva.useLegacyReplWindowPath": false,
-        "calva.replConnectSequences": [
-          {
-            "name": "Preconfigured REPL Connect",
-            "projectType": "deps.edn",
-            "autoSelectForJackIn": true,
-            "cljsType": "shadow-cljs",
-            "menuSelections": {
-              "cljsLaunchBuilds": [
-                ":app"
-              ],
-              "cljAliases": [
-                ":dev"
-              ],
-              "cljsDefaultBuild": ":app"
-            }
-          }
-        ]
+        "security.workspace.trust.banner": "never",
+        "security.workspace.trust.emptyWindow": true,
+        "security.workspace.trust.enabled": false
       }
     }
   }

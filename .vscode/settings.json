@@ -1,4 +1,5 @@
 {
+  "calva.useLegacyReplWindowPath": false,
   "calva.replConnectSequences": [
     {
       "name": "Preconfigured REPL Connect",

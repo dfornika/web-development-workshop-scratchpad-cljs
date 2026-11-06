@@ -1,10 +1,11 @@
-FROM clojure:temurin-21-tools-deps-1.11.1.1429-jammy
-# Ubuntu: Ubuntu 22.04 LTS (Jammy Jellyfish)
-# JDK: eclipse-temurin 21
-# Clojure: tools-deps, 1.11.1.1429
+FROM clojure:temurin-25-tools-deps-1.12.6.1673-noble
+# Ubuntu: Ubuntu 24.04 LTS (Noble Numbat)
+# JDK: eclipse-temurin 25
+# Clojure: tools-deps, 1.12.6.1673
 
 # Extra tools
-RUN apt-get update && apt-get install -y gpg curl nodejs npm
+RUN apt-get update && apt-get install -y gpg curl
+# Node.js/npm are installed by the devcontainer "node" feature (see devcontainer.json)
 
 RUN clojure -Ttools install-latest :lib io.github.seancorfield/deps-new :as new
 
