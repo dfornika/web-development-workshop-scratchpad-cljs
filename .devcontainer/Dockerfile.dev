@@ -4,7 +4,8 @@ FROM clojure:temurin-25-tools-deps-1.12.6.1673-noble
 # Clojure: tools-deps, 1.12.6.1673
 
 # Extra tools
-RUN apt-get update && apt-get install -y gpg curl
+# libatomic1 is needed by recent Node.js binaries (installed by the node feature)
+RUN apt-get update && apt-get install -y gpg curl libatomic1
 # Node.js/npm are installed by the devcontainer "node" feature (see devcontainer.json)
 
 RUN clojure -Ttools install-latest :lib io.github.seancorfield/deps-new :as new
