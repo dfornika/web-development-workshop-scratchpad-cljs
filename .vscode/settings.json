@@ -1,0 +1,23 @@
+{
+  "calva.replConnectSequences": [
+    {
+      "name": "Preconfigured REPL Connect",
+      "projectType": "deps.edn",
+      "autoSelectForJackIn": true,
+      "cljsType": {
+        "dependsOn": "shadow-cljs",
+        "startCode": "(do (shadow.cljs.devtools.server/start!) (shadow.cljs.devtools.api/watch :app))",
+        "connectCode": "(shadow.cljs.devtools.api/nrepl-select :app)"
+      },
+      "menuSelections": {
+        "cljsLaunchBuilds": [
+          ":app"
+        ],
+        "cljAliases": [
+          ":dev"
+        ],
+        "cljsDefaultBuild": ":app"
+      }
+    }
+  ]
+}

@@ -1,9 +1,14 @@
-{:deps {:aliases [:dev]}
+{:deps true
  :dev-http {8000 "resources/public"}
  :builds {:app {:target :browser
                 :output-dir "resources/public/js"
                 :asset-path "/js"
+                :devtools {:devtools-url "DEVTOOLS_URL_PLACEHOLDER"}
                 :modules {:main
-                          {:init-fn cljs-devcontainer.core/init}}
+                          {:init-fn scratchpad.main/init}}
                 :build-hooks [(shadow.cljs.build-report/hook {:output-to "build-reports/report.html"})]
-                :release {:compiler-options {:optimizations :simple}}}}}
+                :release {:compiler-options {:optimizations :simple}}}
+          :test {:target :node-test
+                 :output-to "target/test/test.js"
+                 :ns-regexp "-test$"
+                 :autorun true}}}

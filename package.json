@@ -1,18 +1,27 @@
 {
-  "name": "clojurescript-devcontainer",
+  "name": "web-development-workshop-scratchpad",
   "version": "1.0.0",
   "description": "",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "postinstall": "cp node_modules/ag-grid-community/styles/ag-grid.css resources/public/css/ag-grid.css && cp node_modules/ag-grid-community/styles/ag-theme-balham.css resources/public/css/ag-theme-balham.css",
+    "dev": "clojure -M:dev -m shadow.cljs.devtools.cli watch app",
+    "release": "clojure -M:dev -m shadow.cljs.devtools.cli release app",
+    "clean": "rm -rf public/js",
+    "test": "clojure -M:dev:test -m shadow.cljs.devtools.cli compile test && node target/test/test.js",
+    "test:watch": "clojure -M:dev:test -m shadow.cljs.devtools.cli watch test"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "shadow-cljs": "^2.28.12"
+    "shadow-cljs": "^3.5.4"
   },
   "dependencies": {
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "ag-grid-community": "^35.0.1",
+    "ag-grid-react": "^35.0.1",
+    "ag-charts-community": "^13.3.1",
+    "ag-charts-react": "^13.3.1"
   }
 }

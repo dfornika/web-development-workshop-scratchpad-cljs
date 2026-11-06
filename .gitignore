@@ -1,6 +1,9 @@
+resources/public/css/ag-*.css
+
 .lsp
 .calva
 .clj-kondo
+.portal
 *~
 .idea
 /.DS_Store
