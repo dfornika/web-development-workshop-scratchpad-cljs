@@ -4,6 +4,9 @@
     "dockerfile": "Dockerfile.dev"
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "security.workspace.trust.banner": "never",
+  "security.workspace.trust.emptyWindow": true,
+  "security.workspace.trust.enabled": false,
   // More info: https://containers.dev/features.
   "features": {},
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
@@ -27,11 +30,7 @@
             "name": "Preconfigured REPL Connect",
             "projectType": "deps.edn",
             "autoSelectForJackIn": true,
-            "cljsType": {
-              "dependsOn": "shadow-cljs",
-              "startCode": "(do (shadow.cljs.devtools.server/start!) (shadow.cljs.devtools.api/watch :app))",
-              "connectCode": "(shadow.cljs.devtools.api/nrepl-select :app)"
-            },
+            "cljsType": "shadow-cljs",
             "menuSelections": {
               "cljsLaunchBuilds": [
                 ":app"

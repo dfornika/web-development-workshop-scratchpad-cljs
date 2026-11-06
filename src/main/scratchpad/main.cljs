@@ -2,7 +2,7 @@
   (:require [reagent.dom.client :as rdomc]
             [ag-grid-community :as ag-grid]
             [ag-charts-community :as ag-charts]
-            [workshop.app :refer [app]]))
+            [scratchpad.app :refer [app]]))
 
 (defonce root (atom nil))
 

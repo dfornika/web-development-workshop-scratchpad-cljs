@@ -2,7 +2,7 @@
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [cljs.core.async :refer [<!]]
             [cljs-http.client :as http]
-            [workshop.state :refer [db]]))
+            [scratchpad.state :refer [db]]))
 
 (defn load-json-rows
   "Fetch `url` and, if the response is a JSON array of objects, store it in
