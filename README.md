@@ -20,11 +20,12 @@ A ready-to-go ClojureScript ([shadow-cljs](https://github.com/thheller/shadow-cl
 
 | Page | What it's for | File to edit |
 | --- | --- | --- |
-| **Playground** | Your own page to experiment with | `src/main/scratchpad/playground.cljs` |
-| **Components** | Ready-made components, with examples to copy | (read-only: `components.cljs`) |
-| **REPL Guide** | How REPL-driven development works, habits, troubleshooting, and practice drills | `src/main/scratchpad/repl_practice.cljs` |
+| **Home** | What the workshop is, and how to use the site | |
 | **Session 1** | Session 1 homework, with live results | `src/main/scratchpad/sessions/session_1.cljs` and `session_1_bonus.cljs` |
 | **Sessions 2–4** | Coming soon | |
+| **Playground** | Your own page to experiment with | `src/main/scratchpad/playground.cljs` |
+| **Components** | Ready-made components, with editable examples, source and HTML | (read-only: `components.cljs`) |
+| **REPL Guide** | How REPL-driven development works, habits, troubleshooting, and practice drills | `src/main/scratchpad/repl_practice.cljs` |
 
 ## Live coding cheat sheet
 

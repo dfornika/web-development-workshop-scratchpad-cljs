@@ -23,6 +23,8 @@
   (swap! db assoc :view (app/view-from-url)))
 
 (defn ^:export init []
+  ;; lets pages (like Home) know they're in the in-browser version
+  (swap! db assoc :edition :web)
   (sync-view-with-url!)
   (.addEventListener js/window "hashchange" sync-view-with-url!)
   (web-playground/init!)

@@ -1,8 +1,10 @@
 (ns scratchpad.views.later-sessions
-  "Placeholder page for sessions 2-4."
+  "Placeholder pages for sessions 2-4."
   (:require [scratchpad.components :as c]))
 
-(defn page []
+(defn page
+  "The page for session `n` (2, 3 or 4)."
+  [n]
   [c/page
-   [c/heading {:level 1} "Sessions 2–4"]
-   [c/callout "Coming soon! Material for the later sessions will appear here."]])
+   [c/heading {:level 1} (str "Session " n)]
+   [c/callout "Coming soon! Material for this session will appear here."]])

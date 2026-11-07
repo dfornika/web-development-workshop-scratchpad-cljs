@@ -320,8 +320,14 @@
                            :color "#cf222e"
                            :background-color "#ffebe9"}}
              [:strong "Not updated: "] @problem])]
-         [c/code-block {:style {:max-height "360px" :overflow "auto"}}
-          shown])])))
+         ;; Source and HTML: a read-only editor, for the syntax colors. The key
+         ;; makes a fresh one whenever the text changes.
+         ^{:key (str (name @tab) "-" (hash shown))}
+         [editor/editor {:initial-doc shown
+                         :read-only? true
+                         :line-numbers? false
+                         :max-height "360px"
+                         :language (if (= @tab :html) :html :clojure)}])])))
 
 (defn- anchor-id [title]
   (ui/anchor-id "gallery" title))
