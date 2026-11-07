@@ -28,7 +28,8 @@
   (if (= :web (:edition @db))
     [c/callout {:kind :info}
      [:strong "You're using the in-browser version. "]
-     "Nothing to install: the Playground's code can be edited right on the page. "
+     "Nothing to install: the Session 1 homework and the Playground can be edited "
+     "right on the page. "
      "For the full setup - your own editor and a REPL - "
      [c/link {:href codespaces-url} "open the workshop in GitHub Codespaces"] "."]
     [c/callout {:kind :success}
@@ -100,8 +101,8 @@
       [c/bullet-list {:numbered? true}
        [:span "Open the " [c/link {:href web-url} "in-browser version"]
         " - nothing to install."]
-       [:span "Go to the " [c/link {:href "#/playground"} "Playground"]
-        " and edit the code on the left."]
+       [:span "Go to " [c/link {:href "#/session-1"} "Session 1"] " or the "
+        [c/link {:href "#/playground"} "Playground"] " and edit the code on the left."]
        "Press Ctrl+S to see your changes. Your edits are saved in your browser."]]]]
 
    [c/footer

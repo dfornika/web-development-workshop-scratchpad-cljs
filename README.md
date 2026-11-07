@@ -102,8 +102,8 @@ Then open those files, load them into the REPL, and compare them with yours.
 
 - **In Codespaces** (what you get when you jack in): the regular version.
   You edit the code in VS Code and use Calva's REPL.
-- **In the browser**: a version where the Playground's code can be edited
-  right on the page, with no setup at all. It's published at
+- **In the browser**: a version where the Session 1 homework and the
+  Playground can be edited right on the page, with no setup at all. It's published at
   https://dfornika.github.io/web-development-workshop-scratchpad-cljs/ and is
   also available as a single HTML file that works offline. The editor uses
   the same keys as Calva: `Alt+Enter` evaluates the top-level form, `Ctrl+Enter`

@@ -38,7 +38,8 @@
           (into [:<>] children))))}))
 
 (defn call-result
-  "Shows `code` and the result of calling `f`. Used by the `show-call` macro."
+  "Shows `code` and the result of calling `f`. `f` is called while drawing,
+  so if it throws, the surrounding error boundary catches it."
   [code f]
   (let [result (f)]
     [c/code-block
