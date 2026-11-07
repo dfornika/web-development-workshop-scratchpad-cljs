@@ -4,7 +4,8 @@
   (:require-macros [scratchpad.macros :refer [example]])
   (:require [reagent.core :as r]
             [scratchpad.components :as c]
-            [scratchpad.ui :as ui]))
+            [scratchpad.ui :as ui]
+            [shadow.resource :as rc]))
 
 (defn- say-hi []
   (js/alert "Hi!"))
@@ -120,43 +121,120 @@
                              :end 22598
                              :total 50000}])]}])
 
-(defn- copy-button [code]
+;; ---------------------------------------------------------------------------
+;; Component source code, for the Source tab
+;; ---------------------------------------------------------------------------
+
+;; The text of components.cljs, embedded at build time. shadow-cljs watches
+;; the file, so the Source tab updates when a component is changed.
+(def ^:private components-source (rc/inline "scratchpad/components.cljs"))
+
+(defn- top-level-forms
+  "Split ClojureScript source text into its top-level (...) forms, as
+  strings. Brackets inside strings, comments and character literals like
+  \\( don't count."
+  [text]
+  (loop [i 0, depth 0, start nil, in-string? false, forms []]
+    (if (>= i (count text))
+      forms
+      (let [ch (nth text i)]
+        (cond
+          in-string?
+          (case ch
+            "\\" (recur (+ i 2) depth start true forms)
+            "\"" (recur (inc i) depth start false forms)
+            (recur (inc i) depth start true forms))
+
+          (= ch "\"") (recur (inc i) depth start true forms)
+          ;; character literal, e.g. \( - skip the next character
+          (= ch "\\") (recur (+ i 2) depth start false forms)
+          ;; comment: skip to the end of the line
+          (= ch ";") (let [eol (.indexOf text "\n" i)]
+                       (recur (if (neg? eol) (count text) eol) depth start false forms))
+
+          (contains? #{"(" "[" "{"} ch)
+          (recur (inc i) (inc depth) (if (zero? depth) i start) false forms)
+
+          (contains? #{")" "]" "}"} ch)
+          (let [depth (dec depth)]
+            (if (and (zero? depth) start)
+              (recur (inc i) 0 nil false (conj forms (subs text start (inc i))))
+              (recur (inc i) depth start false forms)))
+
+          :else (recur (inc i) depth start false forms))))))
+
+(def ^:private component-sources
+  "A map of component name -> the source of its (defn ...), e.g. \"card\"."
+  (into {}
+        (for [form (top-level-forms components-source)
+              :let [[_ name] (re-find #"^\(defn\s+([^\s\[]+)" form)]
+              :when name]
+          [name form])))
+
+;; ---------------------------------------------------------------------------
+;; One example card
+;; ---------------------------------------------------------------------------
+
+(defn- copy-button [text]
   (r/with-let [copied? (r/atom false)]
     [c/button {:variant :secondary
                :style {:padding "2px 8px" :font-size "12px"}
                :on-click (fn []
-                           (.writeText js/navigator.clipboard code)
+                           (.writeText js/navigator.clipboard text)
                            (reset! copied? true)
                            (js/setTimeout #(reset! copied? false) 1500))}
      (if @copied? "Copied!" "Copy")]))
 
-(defn- small-label [text]
-  [:div {:style {:font-size "12px" :color "#57606a" :margin "8px 0 4px 0"}} text])
+(def ^:private tab-list
+  [[:usage "Usage" "How to use it - copy this into your own page."]
+   [:source "Source" (str "How it's defined, in src/main/scratchpad/components.cljs. "
+                          "(Most components start with split-props, which separates the "
+                          "optional map of options from the children.)")]
+   [:html "HTML" "The HTML that the usage example turns into."]])
+
+(defn- tab-bar [current on-select copy-text]
+  [:div {:style {:display "flex"
+                 :align-items "flex-end"
+                 :border-bottom "1px solid #d0d7de"
+                 :margin-bottom "6px"}}
+   (for [[id label] tab-list]
+     ^{:key id}
+     [:button {:on-click #(on-select id)
+               :style {:border "none"
+                       :background "none"
+                       :padding "6px 12px"
+                       :margin-bottom "-1px"
+                       :cursor "pointer"
+                       :font-size "13px"
+                       :color (if (= id current) "#004a87" "#57606a")
+                       :font-weight (if (= id current) "bold" "normal")
+                       :border-bottom (if (= id current)
+                                        "2px solid #004a87"
+                                        "2px solid transparent")}}
+      label])
+   [:div {:style {:margin-left "auto" :padding-bottom "4px"}}
+    [copy-button copy-text]]])
 
 (defn- example-card [{:keys [title description code view]}]
-  (r/with-let [show-html? (r/atom false)]
-    [c/card
-     [c/row {:align "center" :style {:justify-content "space-between"}}
-      [:code {:style {:font-size "16px" :font-weight "bold"}} title]
-      [c/row {:gap "4px"}
-       [c/button {:variant :secondary
-                  :style {:padding "2px 8px" :font-size "12px"}
-                  :on-click (fn [] (swap! show-html? not))}
-        (if @show-html? "Hide HTML" "Show HTML")]
-       [copy-button code]]]
-     [c/paragraph {:style {:color "#57606a" :margin "4px 0 12px 0"}} description]
-     [:div {:style {:padding "12px"
-                    :margin-bottom "12px"
-                    :border "1px dashed #d0d7de"
-                    :border-radius "6px"}}
-      [ui/error-boundary view]]
-     (if @show-html?
-       [:<>
-        [small-label "Hiccup (ClojureScript)"]
-        [c/code-block code]
-        [small-label "HTML it turns into"]
-        [c/code-block (c/html view)]]
-       [c/code-block code])]))
+  (r/with-let [tab (r/atom :usage)]
+    (let [text (case @tab
+                 :usage code
+                 :source (get component-sources title
+                              (str ";; Couldn't find (defn " title " ...) in components.cljs"))
+                 :html (c/html view))]
+      [c/card
+       [:code {:style {:font-size "16px" :font-weight "bold"}} title]
+       [c/paragraph {:style {:color "#57606a" :margin "4px 0 12px 0"}} description]
+       [:div {:style {:padding "12px"
+                      :margin-bottom "12px"
+                      :border "1px dashed #d0d7de"
+                      :border-radius "6px"}}
+        [ui/error-boundary view]]
+       [tab-bar @tab #(reset! tab %) text]
+       [:div {:style {:font-size "12px" :color "#57606a" :margin-bottom "6px"}}
+        (some (fn [[id _ caption]] (when (= id @tab) caption)) tab-list)]
+       [c/code-block {:style {:max-height "360px" :overflow "auto"}}
+        text]])))
 
 (defn- anchor-id [title]
   (ui/anchor-id "gallery" title))
@@ -181,9 +259,10 @@
      " part of the " [:code "ns"] " form at the top - playground.cljs already has it."]
     [c/paragraph
      "Want to see how one works, or change it? They're all in "
-     [:code "src/main/scratchpad/components.cljs"] ". Click " [:strong "Show HTML"]
-     " to see the HTML an example turns into - or try "
-     [:code "(c/print-html [c/card \"Hi\"])"] " at the REPL."]
+     [:code "src/main/scratchpad/components.cljs"] ". Under each example, the "
+     [:strong "Usage"] " tab shows how to use it, " [:strong "Source"]
+     " shows how it's built, and " [:strong "HTML"] " shows the HTML it turns into "
+     "(you can also try " [:code "(c/print-html [c/card \"Hi\"])"] " at the REPL)."]
     (for [{:keys [title examples]} sections]
       ^{:key title}
       [ui/anchor (anchor-id title)
