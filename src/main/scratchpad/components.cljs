@@ -147,10 +147,10 @@
   Options: `:title`, `:title-color`, `:height-px`, `:logo-src`, `:style`"
   [& args]
   (let [[{:keys [title title-color height-px logo-src style]
-          :or {title "Header"
+          :or {title "Lab Website"
                title-color "#004a87"
                height-px 48
-               logo-src "images/logo.svg"}}
+               logo-src "images/logo-dna.svg"}}
          _children] (split-props args)]
     [:header {:style (merge {:display "flex"
                              :justify-content "space-between"

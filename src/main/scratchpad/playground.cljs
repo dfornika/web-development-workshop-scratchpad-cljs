@@ -20,8 +20,10 @@
    [:h1 {:style {:font-family "Arial"
                  :color "#004a87"
                  :margin "0px"}}
-    "Header"]
-   [:img {:src "images/logo.svg" :height "48px"}]])
+    "Lab Website"]
+   ;; Other logos to try (all in resources/public/images): logo-flask.svg,
+   ;; logo-microscope.svg, logo-molecule.svg, logo-bacterium.svg
+   [:img {:src "images/logo-dna.svg" :height "48px" :alt "logo"}]])
 
 (defn welcome-banner
   "A component made from scratch: plain hiccup tags ([:div ...], [:h2 ...])
@@ -61,12 +63,12 @@
     [c/grid {:columns 2}
      [c/card {:title "About our lab"}
       [c/paragraph
-       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod "
-       "tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim "
-       "veniam, quis nostrud exercitation ullamco laboris."]
+       "We're a public health genomics lab. We sequence bacterial and viral "
+       "samples to help track outbreaks, monitor antimicrobial resistance, "
+       "and support our partners in the field."]
       [c/paragraph
-       "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum "
-       "dolore eu fugiat nulla pariatur."]]
+       "This site shares our latest results, the tools we use, and how to "
+       "get in touch with the team."]]
      [c/card {:title "Latest gel"
               :style {:background-color "#fdf6e3"}}
       [c/image {:src "images/gel.svg"
