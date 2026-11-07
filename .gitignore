@@ -41,3 +41,6 @@ resources/brepl_client.js
 .shadow-cljs
 resources/public/js/*
 build-reports
+
+# npm run bundle output
+dist

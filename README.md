@@ -22,6 +22,7 @@ A ready-to-go ClojureScript ([shadow-cljs](https://github.com/thheller/shadow-cl
 | --- | --- | --- |
 | **Playground** | Your own page to experiment with | `src/main/scratchpad/playground.cljs` |
 | **Components** | Ready-made components, with examples to copy | (read-only: `components.cljs`) |
+| **REPL Guide** | How REPL-driven development works, habits, troubleshooting, and practice drills | `src/main/scratchpad/repl_practice.cljs` |
 | **Session 1** | Session 1 homework, with live results | `src/main/scratchpad/sessions/session_1.cljs` and `session_1_bonus.cljs` |
 | **Sessions 2–4** | Coming soon | |
 
@@ -47,6 +48,9 @@ work in the browser, use the Command Palette instead.
 **Rich comment blocks.** Each file ends with a `(comment ...)` block. Nothing
 inside it runs when the file loads, so it's a safe place to keep experiments.
 Put your cursor on a form inside and press `Alt+Enter`.
+
+For a fuller explanation, the habits that help, and hands-on practice drills,
+see the **REPL Guide** page in the app.
 
 ### Common gotchas
 
@@ -98,4 +102,9 @@ Then open those files, load them into the REPL, and compare them with yours.
 ```bash
 npm run dev     # watch & hot-reload the app without Calva
 npm run release # optimized build into resources/public/js
+npm run bundle  # the whole app as ONE file: dist/scratchpad.html
 ```
+
+`npm run bundle` packs the compiled app, CSS and images into a single HTML
+file that works without a web server or internet connection. Open it straight
+from disk, put it on a shared drive, or send it to someone.

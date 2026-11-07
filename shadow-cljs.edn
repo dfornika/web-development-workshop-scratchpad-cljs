@@ -7,6 +7,14 @@
                           {:init-fn scratchpad.main/init}}
                 :build-hooks [(shadow.cljs.build-report/hook {:output-to "build-reports/report.html"})]
                 :release {:compiler-options {:optimizations :simple}}}
+          ;; Same app, compiled for `npm run bundle` (see scripts/bundle.mjs).
+          ;; Kept separate from :app so it never overwrites the dev build.
+          :bundle {:target :browser
+                   :output-dir "target/bundle/js"
+                   :asset-path "js"
+                   :modules {:main
+                             {:init-fn scratchpad.main/init}}
+                   :compiler-options {:optimizations :advanced}}
           :test {:target :node-test
                  :output-to "target/test/test.js"
                  :ns-regexp "-test$"
