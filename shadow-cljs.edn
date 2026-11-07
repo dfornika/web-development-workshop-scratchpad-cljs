@@ -2,6 +2,14 @@
  :dev-http {8000 "resources/public"}
  :builds {:app {:target :browser
                 :output-dir "resources/public/js"
+                ;; AG Grid and other JavaScript libraries call our functions with
+                ;; JavaScript objects, so the homework has interop like
+                ;; (.. params -data -sampleId). shadow-cljs warns about those
+                ;; ("Cannot infer target type") unless they're marked with ^js,
+                ;; and the warnings pop up in the browser on every save - which
+                ;; is confusing while learning. Externs inference only matters for
+                ;; :advanced builds, and this build never uses :advanced, so it's off.
+                :compiler-options {:infer-externs false}
                 :asset-path "/js"
                 :modules {:main
                           {:init-fn scratchpad.main/init}}
@@ -26,6 +34,9 @@
                 :asset-path "/web-js"
                 :modules {:main
                           {:init-fn scratchpad.web.main/init}}
+                ;; no interop warnings while developing (see :app); the release
+                ;; build is :advanced, so it keeps externs inference on
+                :dev {:compiler-options {:infer-externs false}}
                 :release {:compiler-options {:optimizations :advanced}}}
           :test {:target :node-test
                  :output-to "target/test/test.js"

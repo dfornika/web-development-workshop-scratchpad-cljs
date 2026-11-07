@@ -4,7 +4,9 @@
   examples on the Components page. Code evaluated here gets the *real*
   Reagent, component library and app state, so it behaves just like the
   compiled code in src/main."
-  (:require [reagent.core :as r]
+  (:require ["ag-grid-community" :as ag-grid-community]
+            ["ag-grid-react" :as ag-grid-react]
+            [reagent.core :as r]
             [sci.configs.reagent.reagent :as sci-reagent]
             [sci.core :as sci]
             [scratchpad.components]
@@ -29,7 +31,11 @@
                         'scratchpad.state {'db (sci/copy-var state/db state-ns)}
                         'scratchpad.main {'render (sci/copy-var render! main-ns)}})
     ;; allow js/alert, js/console, js/document, ...
-    :classes {'js js/globalThis :allow :all}}))
+    :classes {'js js/globalThis :allow :all}
+    ;; npm libraries code typed into the page can (:require [\"...\"]), just
+    ;; like compiled code can
+    :js-libs {"ag-grid-community" ag-grid-community
+              "ag-grid-react" ag-grid-react}}))
 
 (defn- format-value [v]
   (binding [*print-length* 50

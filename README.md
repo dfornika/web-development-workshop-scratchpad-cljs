@@ -22,7 +22,8 @@ A ready-to-go ClojureScript ([shadow-cljs](https://github.com/thheller/shadow-cl
 | --- | --- | --- |
 | **Home** | What the workshop is, and how to use the site | |
 | **Session 1** | **Lesson**: the session's slides. **Homework**: exercises with live results | `src/main/scratchpad/sessions/session_1.cljs` and `session_1_bonus.cljs` |
-| **Sessions 2–4** | Coming soon | |
+| **Session 2** | **Lesson**: Reagent and AG Grid. **Homework**: tables, and a mini QC dashboard | `src/main/scratchpad/sessions/session_2.cljs` and `session_2_bonus.cljs` |
+| **Sessions 3–4** | Coming soon | |
 | **Playground** | Your own page to experiment with | `src/main/scratchpad/playground.cljs` |
 | **Components** | Ready-made components, with editable examples, source and HTML | (read-only: `components.cljs`) |
 | **REPL Guide** | How REPL-driven development works, habits, troubleshooting, and practice drills | `src/main/scratchpad/repl_practice.cljs` |
