@@ -9,22 +9,6 @@
   (:require [scratchpad.components :as c]
             [scratchpad.state :refer [db]]))
 
-(defn header
-  "The header at the top of the page."
-  []
-  [:header {:style {:display "flex"
-                    :justify-content "space-between"
-                    :align-items "center"
-                    :padding "8px 16px"
-                    :height "64px"}}
-   [:h1 {:style {:font-family "Arial"
-                 :color "#004a87"
-                 :margin "0px"}}
-    "Lab Website"]
-   ;; Other logos to try (all in resources/public/images): logo-flask.svg,
-   ;; logo-microscope.svg, logo-molecule.svg, logo-bacterium.svg
-   [:img {:src "images/logo-dna.svg" :height "48px" :alt "logo"}]])
-
 (defn welcome-banner
   "A component made from scratch: plain hiccup tags ([:div ...], [:h2 ...])
   styled with a :style map - no component library needed. Everything in
@@ -46,13 +30,20 @@
   "The whole page. Add things inside the [:div ...] to see them appear."
   []
   [:div
-   [header]
+   ;; The header, from the component library. Try changing the options,
+   ;; or add a :style map, e.g. :style {:background-color "#f0f8ff"}.
+   ;; Other logos to try (all in resources/public/images): logo-flask.svg,
+   ;; logo-microscope.svg, logo-molecule.svg, logo-bacterium.svg
+   [c/header {:title "Lab Website"
+              :title-color "#004a87"
+              :logo-src "images/logo-dna.svg"
+              :height-px 48}]
 
    ;; A message you can set from the REPL - see the (comment ...) below.
    (when-let [message (:message @db)]
      [c/callout {:kind :success} message])
 
-   ;; From here on, it's components from the library (c/...), plus the
+   ;; The rest is components from the library (c/...), plus the
    ;; welcome-banner defined above. See the Components page for more.
    [c/page
     [welcome-banner
@@ -115,11 +106,12 @@
   @db
 
   ;; Hiccup is just data: evaluate a component and look at what it returns
-  (header)
+  (welcome-banner "Hi" "There")
+  (c/header {:title "Lab Website"})
 
   ;; ...and see the HTML it turns into. print-html shows it in Calva's REPL
   ;; output window; html returns it as a string.
-  (c/print-html [header])
+  (c/print-html [c/header {:title "Lab Website"}])
   (c/print-html [c/card {:title "KPC-3"} [c/paragraph "A carbapenemase gene."]])
   (c/html [:p "Hello"])
   ;; Notice :on-click doesn't appear in the HTML: React attaches event
