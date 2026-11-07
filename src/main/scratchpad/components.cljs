@@ -7,15 +7,23 @@
       [c/card {:title \"Hello\"}
        [c/paragraph \"Some text\"]]
 
-  Most components also accept a `:style` option, which is merged into
-  their default styles, so you can tweak how they look.
+  On top of its own options, every component also:
+    - merges a `:style` option into its default styles, so you can tweak
+      how it looks
+    - passes any other option it doesn't use itself - like `:id`, `:class`
+      or `:title` - straight through as an HTML attribute on its outermost
+      element
+    - marks that element with a `data-component` attribute naming the
+      component, so you can spot it in the HTML (on the Components page's
+      HTML tab, or in your browser's developer tools)
 
   Browse them all (with copy-able examples) on the Components page.
 
   To see the HTML any hiccup turns into, use `c/print-html` (or `c/html`
   for a string) at the REPL:
 
-      (c/print-html [c/card {:title \"Hello\"} \"Some text\"])
+      (c/print-html [c/card {:id \"intro\" :title \"Hello\"} \"Some text\"])
+
   To use them in your own file, add this to your `ns` form:
 
       (:require [scratchpad.components :as c])"
@@ -30,6 +38,21 @@
     [(first args) (rest args)]
     [{} args]))
 
+(defn- html-attrs
+  "The HTML attributes for a component's outermost element.
+
+  Starts from the component's own `attrs` (including its default :style),
+  then adds:
+    - any option in `opts` the component doesn't use itself (anything not
+      in `own-keys`), like :id or :class, as an HTML attribute
+    - data-component, naming the component
+    - the caller's :style, merged over the default style"
+  [component-name opts own-keys attrs]
+  (merge attrs
+         (apply dissoc opts :style own-keys)
+         {:data-component component-name
+          :style (merge (:style attrs) (:style opts))}))
+
 
 ;; ---------------------------------------------------------------------------
 ;; Layout
@@ -40,11 +63,11 @@
 
   Options: `:max-width` (default \"960px\"), `:style`"
   [& args]
-  (let [[{:keys [max-width style] :or {max-width "960px"}} children] (split-props args)]
-    (into [:main {:style (merge {:max-width max-width
-                                 :margin "0 auto"
-                                 :padding "16px"}
-                                style)}]
+  (let [[{:keys [max-width] :or {max-width "960px"} :as opts} children] (split-props args)]
+    (into [:main (html-attrs "page" opts [:max-width]
+                             {:style {:max-width max-width
+                                      :margin "0 auto"
+                                      :padding "16px"}})]
           children)))
 
 (defn row
@@ -52,12 +75,12 @@
 
   Options: `:gap` (default \"16px\"), `:align` (e.g. \"center\"), `:style`"
   [& args]
-  (let [[{:keys [gap align style] :or {gap "16px"}} children] (split-props args)]
-    (into [:div {:style (merge {:display "flex"
-                                :flex-wrap "wrap"
-                                :gap gap
-                                :align-items align}
-                               style)}]
+  (let [[{:keys [gap align] :or {gap "16px"} :as opts} children] (split-props args)]
+    (into [:div (html-attrs "row" opts [:gap :align]
+                            {:style {:display "flex"
+                                     :flex-wrap "wrap"
+                                     :gap gap
+                                     :align-items align}})]
           children)))
 
 (defn column
@@ -65,11 +88,11 @@
 
   Options: `:gap` (default \"16px\"), `:style`"
   [& args]
-  (let [[{:keys [gap style] :or {gap "16px"}} children] (split-props args)]
-    (into [:div {:style (merge {:display "flex"
-                                :flex-direction "column"
-                                :gap gap}
-                               style)}]
+  (let [[{:keys [gap] :or {gap "16px"} :as opts} children] (split-props args)]
+    (into [:div (html-attrs "column" opts [:gap]
+                            {:style {:display "flex"
+                                     :flex-direction "column"
+                                     :gap gap}})]
           children)))
 
 (defn grid
@@ -77,13 +100,13 @@
 
   Options: `:columns` (default 3), `:gap` (default \"16px\"), `:style`"
   [& args]
-  (let [[{:keys [columns gap style] :or {columns 3 gap "16px"}} children] (split-props args)]
-    (into [:div {:style (merge {:display "grid"
-                                ;; minmax(0, 1fr) rather than 1fr, so wide content (like long code)
-                                ;; scrolls inside its cell instead of stretching the grid
-                                :grid-template-columns (str "repeat(" columns ", minmax(0, 1fr))")
-                                :gap gap}
-                               style)}]
+  (let [[{:keys [columns gap] :or {columns 3 gap "16px"} :as opts} children] (split-props args)]
+    (into [:div (html-attrs "grid" opts [:columns :gap]
+                            {:style {:display "grid"
+                                     ;; minmax(0, 1fr) rather than 1fr, so wide content (like long code)
+                                     ;; scrolls inside its cell instead of stretching the grid
+                                     :grid-template-columns (str "repeat(" columns ", minmax(0, 1fr))")
+                                     :gap gap}})]
           children)))
 
 (defn card
@@ -91,12 +114,12 @@
 
   Options: `:title`, `:style`"
   [& args]
-  (let [[{:keys [title style]} children] (split-props args)]
-    [:div {:style (merge {:border "1px solid #d0d7de"
-                          :border-radius "8px"
-                          :padding "16px"
-                          :background-color "white"}
-                         style)}
+  (let [[{:keys [title] :as opts} children] (split-props args)]
+    [:div (html-attrs "card" opts [:title]
+                      {:style {:border "1px solid #d0d7de"
+                               :border-radius "8px"
+                               :padding "16px"
+                               :background-color "white"}})
      (when title
        [:h3 {:style {:margin "0 0 8px 0"}} title])
      (into [:<>] children)]))
@@ -106,8 +129,9 @@
 
   Options: `:title`, `:style`"
   [& args]
-  (let [[{:keys [title style]} children] (split-props args)]
-    [:section {:style (merge {:margin "24px 0"} style)}
+  (let [[{:keys [title] :as opts} children] (split-props args)]
+    [:section (html-attrs "section" opts [:title]
+                          {:style {:margin "24px 0"}})
      (when title
        [:h2 {:style {:border-bottom "2px solid #004a87"
                      :padding-bottom "4px"}}
@@ -115,25 +139,29 @@
      (into [:<>] children)]))
 
 (defn divider
-  "A horizontal line."
-  []
-  [:hr {:style {:border "none"
-                :border-top "1px solid #d0d7de"
-                :margin "16px 0"}}])
+  "A horizontal line.
+
+  Options: `:style`"
+  [& args]
+  (let [[opts] (split-props args)]
+    [:hr (html-attrs "divider" opts []
+                     {:style {:border "none"
+                              :border-top "1px solid #d0d7de"
+                              :margin "16px 0"}})]))
 
 (defn footer
   "A footer for the bottom of the page.
 
   Options: `:style`"
   [& args]
-  (let [[{:keys [style]} children] (split-props args)]
-    (into [:footer {:style (merge {:margin-top "32px"
-                                   :padding "16px"
-                                   :border-top "1px solid #d0d7de"
-                                   :color "#57606a"
-                                   :font-size "14px"
-                                   :text-align "center"}
-                                  style)}]
+  (let [[opts children] (split-props args)]
+    (into [:footer (html-attrs "footer" opts []
+                               {:style {:margin-top "32px"
+                                        :padding "16px"
+                                        :border-top "1px solid #d0d7de"
+                                        :color "#57606a"
+                                        :font-size "14px"
+                                        :text-align "center"}})]
           children)))
 
 
@@ -146,17 +174,18 @@
 
   Options: `:title`, `:title-color`, `:height-px`, `:logo-src`, `:style`"
   [& args]
-  (let [[{:keys [title title-color height-px logo-src style]
+  (let [[{:keys [title title-color height-px logo-src]
           :or {title "Lab Website"
                title-color "#004a87"
                height-px 48
-               logo-src "images/logo-dna.svg"}}
+               logo-src "images/logo-dna.svg"}
+          :as opts}
          _children] (split-props args)]
-    [:header {:style (merge {:display "flex"
-                             :justify-content "space-between"
-                             :align-items "center"
-                             :padding "8px 16px"}
-                            style)}
+    [:header (html-attrs "header" opts [:title :title-color :height-px :logo-src]
+                         {:style {:display "flex"
+                                  :justify-content "space-between"
+                                  :align-items "center"
+                                  :padding "8px 16px"}})
      [:h1 {:style {:color title-color :margin "0px"}}
       title]
      [:img {:src logo-src
@@ -168,9 +197,10 @@
 
   Options: `:level` (default 2), `:color`, `:style`"
   [& args]
-  (let [[{:keys [level color style] :or {level 2}} children] (split-props args)
+  (let [[{:keys [level color] :or {level 2} :as opts} children] (split-props args)
         tag (get {1 :h1 2 :h2 3 :h3 4 :h4} level :h2)]
-    (into [tag {:style (merge {:color color} style)}]
+    (into [tag (html-attrs "heading" opts [:level :color]
+                           {:style {:color color}})]
           children)))
 
 (defn paragraph
@@ -178,8 +208,9 @@
 
   Options: `:style`"
   [& args]
-  (let [[{:keys [style]} children] (split-props args)]
-    (into [:p {:style (merge {:line-height "1.5"} style)}]
+  (let [[opts children] (split-props args)]
+    (into [:p (html-attrs "paragraph" opts []
+                          {:style {:line-height "1.5"}})]
           children)))
 
 (defn image
@@ -187,8 +218,9 @@
 
   Options: `:src`, `:alt`, `:width`, `:height`, `:caption`, `:style`"
   [& args]
-  (let [[{:keys [src alt width height caption style]} _children] (split-props args)]
-    [:figure {:style (merge {:margin "0"} style)}
+  (let [[{:keys [src alt width height caption] :as opts} _children] (split-props args)]
+    [:figure (html-attrs "image" opts [:src :alt :width :height :caption]
+                         {:style {:margin "0"}})
      [:img {:src src
             :alt (or alt caption "")
             :style {:width width
@@ -204,12 +236,13 @@
 
   Options: `:href`, `:style`"
   [& args]
-  (let [[{:keys [href style]} children] (split-props args)
+  (let [[{:keys [href] :as opts} children] (split-props args)
         external? (str/starts-with? (str href) "http")]
-    (into [:a {:href href
-               :target (when external? "_blank")
-               :rel (when external? "noopener noreferrer")
-               :style (merge {:color "#0969da"} style)}]
+    (into [:a (html-attrs "link" opts [:href]
+                          {:href href
+                           :target (when external? "_blank")
+                           :rel (when external? "noopener noreferrer")
+                           :style {:color "#0969da"}})]
           children)))
 
 (defn bullet-list
@@ -217,8 +250,8 @@
 
   Options: `:numbered?` (true for a numbered list), `:style`"
   [& args]
-  (let [[{:keys [numbered? style]} children] (split-props args)]
-    (into [(if numbered? :ol :ul) {:style style}]
+  (let [[{:keys [numbered?] :as opts} children] (split-props args)]
+    (into [(if numbered? :ol :ul) (html-attrs "bullet-list" opts [:numbered?] {})]
           (map-indexed (fn [i child] ^{:key i} [:li child])
                        children))))
 
@@ -233,12 +266,12 @@
 
   Options: `:kind` (one of :info :success :warning :error, default :info), `:style`"
   [& args]
-  (let [[{:keys [kind style] :or {kind :info}} children] (split-props args)]
-    (into [:div {:style (merge {:padding "12px 16px"
-                                :border-left "4px solid"
-                                :border-radius "4px"}
-                               (get callout-colors kind (:info callout-colors))
-                               style)}]
+  (let [[{:keys [kind] :or {kind :info} :as opts} children] (split-props args)]
+    (into [:div (html-attrs "callout" opts [:kind]
+                            {:style (merge {:padding "12px 16px"
+                                            :border-left "4px solid"
+                                            :border-radius "4px"}
+                                           (get callout-colors kind (:info callout-colors)))})]
           children)))
 
 (defn code-block
@@ -246,14 +279,14 @@
 
   Options: `:style`"
   [& args]
-  (let [[{:keys [style]} children] (split-props args)]
-    [:pre {:style (merge {:background-color "#f6f8fa"
-                          :padding "12px"
-                          :border-radius "6px"
-                          :overflow-x "auto"
-                          :font-size "13px"
-                          :margin "0"}
-                         style)}
+  (let [[opts children] (split-props args)]
+    [:pre (html-attrs "code-block" opts []
+                      {:style {:background-color "#f6f8fa"
+                               :padding "12px"
+                               :border-radius "6px"
+                               :overflow-x "auto"
+                               :font-size "13px"
+                               :margin "0"}})
      (into [:code] children)]))
 
 
@@ -266,22 +299,22 @@
 
   Options: `:on-click`, `:variant` (:primary or :secondary), `:disabled?`, `:style`"
   [& args]
-  (let [[{:keys [on-click variant disabled? style] :or {variant :primary}} children] (split-props args)]
-    (into [:button {:on-click on-click
-                    :disabled disabled?
-                    :style (merge {:padding "8px 16px"
-                                   :border-radius "6px"
-                                   :font-size "14px"
-                                   :cursor (if disabled? "not-allowed" "pointer")
-                                   :opacity (when disabled? 0.5)}
-                                  (if (= variant :secondary)
-                                    {:background-color "white"
-                                     :color "#004a87"
-                                     :border "1px solid #004a87"}
-                                    {:background-color "#004a87"
-                                     :color "white"
-                                     :border "1px solid #004a87"})
-                                  style)}]
+  (let [[{:keys [on-click variant disabled?] :or {variant :primary} :as opts} children] (split-props args)]
+    (into [:button (html-attrs "button" opts [:on-click :variant :disabled?]
+                               {:on-click on-click
+                                :disabled disabled?
+                                :style (merge {:padding "8px 16px"
+                                               :border-radius "6px"
+                                               :font-size "14px"
+                                               :cursor (if disabled? "not-allowed" "pointer")
+                                               :opacity (when disabled? 0.5)}
+                                              (if (= variant :secondary)
+                                                {:background-color "white"
+                                                 :color "#004a87"
+                                                 :border "1px solid #004a87"}
+                                                {:background-color "#004a87"
+                                                 :color "white"
+                                                 :border "1px solid #004a87"}))})]
           children)))
 
 (defn text-input
@@ -292,35 +325,35 @@
 
   Options: `:value`, `:on-change`, `:placeholder`, `:style`"
   [& args]
-  (let [[{:keys [value on-change placeholder style]} _children] (split-props args)]
-    [:input {:type "text"
-             :value (or value "")
-             :placeholder placeholder
-             :on-change (fn [event] (when on-change (on-change (.. event -target -value))))
-             :style (merge {:padding "8px"
-                            :font-size "14px"
-                            :border "1px solid #d0d7de"
-                            :border-radius "6px"}
-                           style)}]))
+  (let [[{:keys [value on-change placeholder] :as opts} _children] (split-props args)]
+    [:input (html-attrs "text-input" opts [:value :on-change :placeholder]
+                        {:type "text"
+                         :value (or value "")
+                         :placeholder placeholder
+                         :on-change (fn [event] (when on-change (on-change (.. event -target -value))))
+                         :style {:padding "8px"
+                                 :font-size "14px"
+                                 :border "1px solid #d0d7de"
+                                 :border-radius "6px"}})]))
 
 (defn text-area
   "A multi-line text box. Works just like `text-input`.
 
   Options: `:value`, `:on-change`, `:placeholder`, `:rows` (default 4), `:style`"
   [& args]
-  (let [[{:keys [value on-change placeholder rows style] :or {rows 4}} _children] (split-props args)]
-    [:textarea {:value (or value "")
-                :placeholder placeholder
-                :rows rows
-                :on-change (fn [event] (when on-change (on-change (.. event -target -value))))
-                :style (merge {:padding "8px"
-                               :font-size "14px"
-                               :font-family "monospace"
-                               :border "1px solid #d0d7de"
-                               :border-radius "6px"
-                               :width "100%"
-                               :box-sizing "border-box"}
-                              style)}]))
+  (let [[{:keys [value on-change placeholder rows] :or {rows 4} :as opts} _children] (split-props args)]
+    [:textarea (html-attrs "text-area" opts [:value :on-change :placeholder :rows]
+                           {:value (or value "")
+                            :placeholder placeholder
+                            :rows rows
+                            :on-change (fn [event] (when on-change (on-change (.. event -target -value))))
+                            :style {:padding "8px"
+                                    :font-size "14px"
+                                    :font-family "monospace"
+                                    :border "1px solid #d0d7de"
+                                    :border-radius "6px"
+                                    :width "100%"
+                                    :box-sizing "border-box"}})]))
 
 (defn checkbox
   "A checkbox with a label.
@@ -329,12 +362,12 @@
 
   Options: `:checked?`, `:on-change`, `:style`"
   [& args]
-  (let [[{:keys [checked? on-change style]} children] (split-props args)]
-    [:label {:style (merge {:display "inline-flex"
-                            :align-items "center"
-                            :gap "6px"
-                            :cursor "pointer"}
-                           style)}
+  (let [[{:keys [checked? on-change] :as opts} children] (split-props args)]
+    [:label (html-attrs "checkbox" opts [:checked? :on-change]
+                        {:style {:display "inline-flex"
+                                 :align-items "center"
+                                 :gap "6px"
+                                 :cursor "pointer"}})
      [:input {:type "checkbox"
               :checked (boolean checked?)
               :on-change (fn [event] (when on-change (on-change (.. event -target -checked))))}]
@@ -350,14 +383,14 @@
 
   Options: `:color` (background color, default light grey), `:style`"
   [& args]
-  (let [[{:keys [color style] :or {color "#eaeef2"}} children] (split-props args)]
-    (into [:span {:style (merge {:display "inline-block"
-                                 :padding "2px 8px"
-                                 :border-radius "999px"
-                                 :background-color color
-                                 :font-size "12px"
-                                 :font-weight "bold"}
-                                style)}]
+  (let [[{:keys [color] :or {color "#eaeef2"} :as opts} children] (split-props args)]
+    (into [:span (html-attrs "tag" opts [:color]
+                             {:style {:display "inline-block"
+                                      :padding "2px 8px"
+                                      :border-radius "999px"
+                                      :background-color color
+                                      :font-size "12px"
+                                      :font-weight "bold"}})]
           children)))
 
 (defn stat
@@ -365,12 +398,12 @@
 
   Options: `:label`, `:value`, `:unit`, `:style`"
   [& args]
-  (let [[{:keys [label value unit style]} _children] (split-props args)]
-    [:div {:style (merge {:display "inline-block"
-                          :padding "8px 16px"
-                          :border "1px solid #d0d7de"
-                          :border-radius "8px"}
-                         style)}
+  (let [[{:keys [label value unit] :as opts} _children] (split-props args)]
+    [:div (html-attrs "stat" opts [:label :value :unit]
+                      {:style {:display "inline-block"
+                               :padding "8px 16px"
+                               :border "1px solid #d0d7de"
+                               :border-radius "8px"}})
      [:div {:style {:font-size "12px" :color "#57606a" :text-transform "uppercase"}}
       label]
      [:div {:style {:font-size "28px" :font-weight "bold"}}
@@ -379,27 +412,39 @@
         [:span {:style {:font-size "16px" :margin-left "4px"}} unit])]]))
 
 (defn label-value
-  "A label and a value on one line, e.g. \"Start: 21331\"."
-  [label value]
-  [:div {:style {:margin "4px 0"}}
-   [:span {:style {:color "#57606a" :margin-right "8px"}} label ":"]
-   [:span {:style {:font-weight "bold"}} value]])
+  "A label and a value on one line, e.g. \"Start: 21331\".
+
+      [c/label-value \"Start\" 21331]
+
+  Options (optional, before the label): `:style`"
+  [& args]
+  (let [[opts [label value]] (split-props args)]
+    [:div (html-attrs "label-value" opts []
+                      {:style {:margin "4px 0"}})
+     [:span {:style {:color "#57606a" :margin-right "8px"}} label ":"]
+     [:span {:style {:font-weight "bold"}} value]]))
 
 (def ^:private base-colors
   {"A" "#2da44e" "T" "#cf222e" "G" "#bf8700" "C" "#0969da"})
 
 (defn dna-sequence
-  "Shows a DNA sequence in a fixed-width font, with each base colored."
-  [sequence]
-  [:div {:style {:font-family "monospace"
-                 :font-size "16px"
-                 :word-break "break-all"
-                 :letter-spacing "1px"}}
-   (map-indexed (fn [i base]
-                  ^{:key i}
-                  [:span {:style {:color (get base-colors (str/upper-case base) "#57606a")}}
-                   base])
-                sequence)])
+  "Shows a DNA sequence in a fixed-width font, with each base colored.
+
+      [c/dna-sequence \"ATGCGT\"]
+
+  Options (optional, before the sequence): `:style`"
+  [& args]
+  (let [[opts [sequence]] (split-props args)]
+    [:div (html-attrs "dna-sequence" opts []
+                      {:style {:font-family "monospace"
+                               :font-size "16px"
+                               :word-break "break-all"
+                               :letter-spacing "1px"}})
+     (map-indexed (fn [i base]
+                    ^{:key i}
+                    [:span {:style {:color (get base-colors (str/upper-case base) "#57606a")}}
+                     base])
+                  sequence)]))
 
 (defn region-bar
   "Draws where a region (like a gene) sits inside a longer sequence.
@@ -407,13 +452,13 @@
   Options: `:start`, `:end`, `:total` (length of the whole sequence),
   `:color`, `:style`"
   [& args]
-  (let [[{:keys [start end total color style] :or {color "#004a87"}} _children] (split-props args)
+  (let [[{:keys [start end total color] :or {color "#004a87"} :as opts} _children] (split-props args)
         percent (fn [n] (str (* 100 (/ n total)) "%"))]
-    [:div {:style (merge {:position "relative"
-                          :height "16px"
-                          :background-color "#eaeef2"
-                          :border-radius "4px"}
-                         style)}
+    [:div (html-attrs "region-bar" opts [:start :end :total :color]
+                      {:style {:position "relative"
+                               :height "16px"
+                               :background-color "#eaeef2"
+                               :border-radius "4px"}})
      [:div {:style {:position "absolute"
                     :left (percent start)
                     :width (percent (- end start))
@@ -501,7 +546,8 @@
 (defn todo
   "A placeholder for something that hasn't been written yet."
   [what]
-  [:div {:style {:padding "12px"
+  [:div {:data-component "todo"
+         :style {:padding "12px"
                  :border "2px dashed #d0d7de"
                  :border-radius "6px"
                  :color "#57606a"}}

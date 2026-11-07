@@ -351,6 +351,12 @@
      [:strong "Source"]
      " shows how it's built, and " [:strong "HTML"] " shows the HTML it turns into "
      "(you can also try " [:code "(c/print-html [c/card \"Hi\"])"] " at the REPL)."]
+    [c/paragraph
+     "Every component also accepts " [:code ":style"] " (merged into its own styles) and "
+     "any HTML attribute, like " [:code ":id"] " or " [:code ":class"] ", which goes on its "
+     "outermost element. That element is labelled with " [:code "data-component"]
+     ", so you can tell which HTML came from which component - look for it on the HTML "
+     "tabs, or in your browser's developer tools (F12)."]
     (for [{:keys [title examples]} sections]
       ^{:key title}
       [ui/anchor (anchor-id title)
