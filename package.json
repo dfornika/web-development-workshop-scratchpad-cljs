@@ -7,6 +7,8 @@
     "dev": "clojure -M:dev -m shadow.cljs.devtools.cli watch app",
     "release": "clojure -M:dev -m shadow.cljs.devtools.cli release app",
     "bundle": "clojure -M:dev -m shadow.cljs.devtools.cli release bundle && node scripts/bundle.mjs",
+    "dev:web": "clojure -M:dev -m shadow.cljs.devtools.cli watch web",
+    "release:web": "clojure -M:dev -m shadow.cljs.devtools.cli release web",
     "clean": "rm -rf resources/public/js",
     "test": "clojure -M:dev:test -m shadow.cljs.devtools.cli compile test && node target/test/test.js",
     "test:watch": "clojure -M:dev:test -m shadow.cljs.devtools.cli watch test"
@@ -17,11 +19,16 @@
     "shadow-cljs": "^3.5.4"
   },
   "dependencies": {
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@nextjournal/clojure-mode": "^0.3.3",
+    "ag-charts-community": "^13.3.1",
+    "ag-charts-react": "^13.3.1",
     "ag-grid-community": "^35.0.1",
     "ag-grid-react": "^35.0.1",
-    "ag-charts-community": "^13.3.1",
-    "ag-charts-react": "^13.3.1"
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   }
 }

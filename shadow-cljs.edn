@@ -15,6 +15,15 @@
                    :modules {:main
                              {:init-fn scratchpad.main/init}}
                    :compiler-options {:optimizations :advanced}}
+          ;; The in-browser version of the site, where code can be edited on
+          ;; the page (see src/main/scratchpad/web/).
+          :web {:target :browser
+                ;; served at http://localhost:8000/web.html
+                :output-dir "resources/public/web-js"
+                :asset-path "/web-js"
+                :modules {:main
+                          {:init-fn scratchpad.web.main/init}}
+                :release {:compiler-options {:optimizations :advanced}}}
           :test {:target :node-test
                  :output-to "target/test/test.js"
                  :ns-regexp "-test$"
