@@ -5,10 +5,9 @@
   (:require [reagent.core :as r]
             [scratchpad.components :as c]
             [scratchpad.ui :as ui]
+            [scratchpad.web.editor :as editor]
+            [scratchpad.web.sci :as sci]
             [shadow.resource :as rc]))
-
-(defn- say-hi []
-  (js/alert "Hi!"))
 
 (def sections
   [{:title "Layout"
@@ -78,7 +77,7 @@
     :examples
     [(example "button" "Runs a function when clicked."
               [c/row
-               [c/button {:on-click say-hi} "Say hi"]
+               [c/button {:on-click (fn [] (js/alert "Hi!"))} "Say hi"]
                [c/button {:variant :secondary} "Secondary"]
                [c/button {:disabled? true} "Disabled"]])
      (example "text-input" "A one-line text box. Type in this one!"
@@ -186,7 +185,7 @@
      (if @copied? "Copied!" "Copy")]))
 
 (def ^:private tab-list
-  [[:usage "Usage" "How to use it - copy this into your own page."]
+  [[:usage "Usage" "Edit me! The example above updates as you type, whenever the code works."]
    [:source "Source" (str "How it's defined, in src/main/scratchpad/components.cljs. "
                           "(Most components start with split-props, which separates the "
                           "optional map of options from the children.)")]
@@ -215,13 +214,74 @@
    [:div {:style {:margin-left "auto" :padding-bottom "4px"}}
     [copy-button copy-text]]])
 
+;; ---------------------------------------------------------------------------
+;; Editable examples
+;; ---------------------------------------------------------------------------
+
+;; Edited examples are evaluated here, with the same aliases as the examples
+;; themselves use.
+(defonce ^:private examples-ns
+  (delay (sci/create-ns! "(ns scratchpad.gallery-examples
+                            (:require [scratchpad.components :as c]
+                                      [reagent.core :as r]))")))
+
+(def ^:private edit-delay-ms
+  "How long to wait after the last keystroke before trying the code."
+  400)
+
+(defn- friendly-error [message]
+  (str message
+       (cond
+         (re-find #"EOF while reading" message) " - is a closing bracket missing?"
+         (re-find #"Unmatched delimiter" message) " - is there an extra closing bracket?"
+         :else "")))
+
+(defn- try-example
+  "Evaluate `text` as an example. Returns {:view hiccup :html string} if it
+  evaluates to hiccup that renders without errors, or {:error message}."
+  [text]
+  (let [{:keys [ok? value error]} (sci/eval-value text @examples-ns)]
+    (cond
+      (not ok?) {:error (friendly-error error)}
+      (not (vector? value)) {:error (str "This should be a hiccup vector, like [c/card ...], "
+                                         "but it's " (pr-str value))}
+      :else (try
+              {:view value :html (c/html value)}
+              (catch :default e
+                {:error (str "It doesn't render: " (ex-message e))})))))
+
 (defn- example-card [{:keys [title description code view]}]
-  (r/with-let [tab (r/atom :usage)]
-    (let [text (case @tab
-                 :usage code
-                 :source (get component-sources title
-                              (str ";; Couldn't find (defn " title " ...) in components.cljs"))
-                 :html (c/html view))]
+  (r/with-let [tab (r/atom :usage)
+               ;; what's in the editor now
+               text (r/atom code)
+               ;; the last version that worked: what we show
+               good (r/atom {:view view :html (c/html view)})
+               problem (r/atom nil)
+               view-ref (atom nil)
+               timer (atom nil)
+               on-change (fn [new-text]
+                           (reset! text new-text)
+                           (js/clearTimeout @timer)
+                           (reset! timer
+                                   (js/setTimeout
+                                    (fn []
+                                      (let [{:keys [error] :as result} (try-example new-text)]
+                                        (if error
+                                          (reset! problem error)
+                                          (do (reset! good result)
+                                              (reset! problem nil)))))
+                                    edit-delay-ms)))
+               revert! (fn []
+                         (js/clearTimeout @timer)
+                         (some-> @view-ref (editor/set-doc! code))
+                         (reset! text code)
+                         (reset! good {:view view :html (c/html view)})
+                         (reset! problem nil))]
+    (let [shown (case @tab
+                  :usage @text
+                  :source (get component-sources title
+                               (str ";; Couldn't find (defn " title " ...) in components.cljs"))
+                  :html (:html @good))]
       [c/card
        [:code {:style {:font-size "16px" :font-weight "bold"}} title]
        [c/paragraph {:style {:color "#57606a" :margin "4px 0 12px 0"}} description]
@@ -229,12 +289,39 @@
                       :margin-bottom "12px"
                       :border "1px dashed #d0d7de"
                       :border-radius "6px"}}
-        [ui/error-boundary view]]
-       [tab-bar @tab #(reset! tab %) text]
-       [:div {:style {:font-size "12px" :color "#57606a" :margin-bottom "6px"}}
-        (some (fn [[id _ caption]] (when (= id @tab) caption)) tab-list)]
-       [c/code-block {:style {:max-height "360px" :overflow "auto"}}
-        text]])))
+        [ui/error-boundary (:view @good)]]
+       [tab-bar @tab #(reset! tab %) shown]
+       [:div {:style {:display "flex"
+                      :align-items "center"
+                      :gap "8px"
+                      :font-size "12px"
+                      :color "#57606a"
+                      :margin-bottom "6px"}}
+        [:span (some (fn [[id _ caption]] (when (= id @tab) caption)) tab-list)]
+        (when (and (= @tab :usage) (not= @text code))
+          [c/button {:variant :secondary
+                     :style {:padding "1px 8px" :font-size "12px" :margin-left "auto"
+                             :white-space "nowrap"}
+                     :on-click revert!}
+           "Revert to original"])]
+       (if (= @tab :usage)
+         [:<>
+          [editor/editor {:initial-doc @text
+                          :view-ref view-ref
+                          :on-change on-change
+                          :line-numbers? false
+                          :max-height "360px"
+                          :style {:font-size "13px"}}]
+          (when @problem
+            [:div {:style {:margin-top "6px"
+                           :padding "6px 10px"
+                           :font-size "12px"
+                           :border-radius "4px"
+                           :color "#cf222e"
+                           :background-color "#ffebe9"}}
+             [:strong "Not updated: "] @problem])]
+         [c/code-block {:style {:max-height "360px" :overflow "auto"}}
+          shown])])))
 
 (defn- anchor-id [title]
   (ui/anchor-id "gallery" title))
@@ -260,7 +347,8 @@
     [c/paragraph
      "Want to see how one works, or change it? They're all in "
      [:code "src/main/scratchpad/components.cljs"] ". Under each example, the "
-     [:strong "Usage"] " tab shows how to use it, " [:strong "Source"]
+     [:strong "Usage"] " tab shows how to use it - and you can edit it to try things out - "
+     [:strong "Source"]
      " shows how it's built, and " [:strong "HTML"] " shows the HTML it turns into "
      "(you can also try " [:code "(c/print-html [c/card \"Hi\"])"] " at the REPL)."]
     (for [{:keys [title examples]} sections]

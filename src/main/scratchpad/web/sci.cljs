@@ -1,8 +1,9 @@
 (ns scratchpad.web.sci
   "Runs ClojureScript typed into the page, using SCI (the Small Clojure
-  Interpreter). Code evaluated here gets the *real* Reagent, component
-  library and app state, so it behaves just like the compiled code in
-  src/main."
+  Interpreter). Used by the in-browser Playground and by the editable
+  examples on the Components page. Code evaluated here gets the *real*
+  Reagent, component library and app state, so it behaves just like the
+  compiled code in src/main."
   (:require [reagent.core :as r]
             [sci.configs.reagent.reagent :as sci-reagent]
             [sci.core :as sci]
@@ -35,6 +36,11 @@
             *print-level* 6]
     (pr-str v)))
 
+(defn- error-message [e]
+  (let [{:keys [line column]} (ex-data e)]
+    (str (ex-message e)
+         (when line (str " (line " line (when column (str ", column " column)) ")")))))
+
 (defn eval-code
   "Evaluate `code` (a string of one or more forms) in namespace `ns` (a SCI
   namespace object, or nil for the default). Anything printed is captured.
@@ -52,11 +58,25 @@
          :out (apply str @out)
          :ns ns})
       (catch :default e
-        (let [{:keys [line column]} (ex-data e)]
-          {:ok? false
-           :error (str (ex-message e)
-                       (when line (str " (line " line (when column (str ", column " column)) ")")))
-           :out (apply str @out)})))))
+        {:ok? false
+         :error (error-message e)
+         :out (apply str @out)}))))
+
+(defn create-ns!
+  "Evaluate an (ns ...) form and return the SCI namespace it creates, to
+  evaluate other code in later, e.g.
+  (create-ns! \"(ns my.examples (:require [scratchpad.components :as c]))\")"
+  [ns-form]
+  (:ns (sci/eval-string+ ctx ns-form)))
+
+(defn eval-value
+  "Evaluate `code` in namespace `ns` and return the actual value (not a
+  printed version of it): {:ok? true :value v}, or {:ok? false :error msg}."
+  [code ns]
+  (try
+    {:ok? true :value (:val (sci/eval-string+ ctx code {:ns ns}))}
+    (catch :default e
+      {:ok? false :error (error-message e)})))
 
 (defn resolve-var
   "Look up a var's current value, e.g. (resolve-var 'scratchpad.playground/page).
