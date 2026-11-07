@@ -11,3 +11,8 @@ body {
 code {
     font-family: ui-monospace, Menlo, Consolas, monospace;
 }
+
+/* The draggable divider in the in-browser Playground */
+.playground-divider:hover .playground-divider-line {
+    background-color: #54aeff !important;
+}

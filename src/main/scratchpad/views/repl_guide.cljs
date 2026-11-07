@@ -45,7 +45,7 @@
     "actually runs"]])
 
 (defn- how-it-fits []
-  [c/section {:title "How the pieces fit together"}
+  [:<>
    [diagram]
    [c/paragraph {:style {:margin-top "16px"}}
     "When you evaluate a form, Calva sends it to shadow-cljs, which compiles it "
@@ -80,12 +80,12 @@
      (into [:tr] (for [h headers] ^{:key h} [:th {:style (merge cell {:background-color "#f6f8fa"})} h]))]
     [:tbody
      (for [[i row] (map-indexed vector rows)]
-       ^{:key i}
-       (into [:tr] (for [[j value] (map-indexed vector row)]
-                     ^{:key j} [:td {:style cell} value])))]]])
+       ;; with-meta, because ^{:key ...} on an (into ...) wouldn't reach the vector
+       (with-meta (into [:tr] (for [value row] [:td {:style cell} value]))
+         {:key i}))]]])
 
 (defn- two-loops []
-  [c/section {:title "Two ways to see your changes"}
+  [:<>
    [table ["" "Save the file" "Evaluate a form"]
     [[[:strong "What happens"]
       "shadow-cljs reloads the whole file and redraws the page"
@@ -104,48 +104,58 @@
 ;; Habits
 ;; ---------------------------------------------------------------------------
 
-(defn- habit [title & body]
-  [:div {:style {:margin-bottom "16px"}}
-   [:h3 {:style {:margin "0 0 4px 0" :font-size "17px"}} title]
-   (into [:div {:style {:line-height "1.5"}}] body)])
+(defn- habit-id [title]
+  (ui/anchor-id "habit" title))
 
-(defn- habits []
-  [c/section {:title "Habits that make it work"}
-   [habit "1. Load the file first"
+;; Each habit is [title & body]. Listed once here, used by both the page
+;; and its table of contents.
+(def ^:private habit-list
+  [["1. Load the file first"
     "Every time you open or switch to a file, load it (Ctrl+Alt+C Enter). "
     "It's the fix for most \"No such namespace\" and \"undeclared Var\" errors."]
-   [habit "2. Keep experiments in rich comment blocks"
+   ["2. Keep experiments in rich comment blocks"
     "Code inside " [:code "(comment ...)"] " never runs on its own, so it's a "
     "safe place to keep REPL experiments right next to the code they're about. "
     "Leave useful ones in - they're living documentation."]
-   [habit "3. Evaluate small, from the inside out"
+   ["3. Evaluate small, from the inside out"
     "Don't write a big expression and hope. Evaluate the innermost part "
     "(Ctrl+Enter), check the result, then move out a layer. When something "
     "breaks, you'll know exactly which layer did it. (Drill 1)"]
-   [habit "4. Look at your data before writing code for it"
+   ["4. Look at your data before writing code for it"
     "Evaluate the data first and see its real shape. Most bugs are a wrong "
     "guess about the data (a string where you expected a number, a vector "
     "of maps where you expected a map...)."]
-   [habit "5. Capture values from inside functions"
+   ["5. Capture values from inside functions"
     "Put a temporary " [:code "(def x x)"] " inside a function to grab the "
     "values it was called with, then explore them at the REPL. (Drill 5)"]
-   [habit "6. Use tap> for big data"
+   ["6. Use tap> for big data"
     [:code "(tap> data)"] " sends a value to the shadow-cljs Inspect page "
     "(port 9630), where you can click through nested data. (Drill 7)"]
-   [habit "7. Keep state in defonce atoms"
+   ["7. Keep state in defonce atoms"
     "State in a " [:code "defonce"] " atom survives saves, and you can read "
     "and change it from the REPL to try out different situations. (Drill 2)"]
-   [habit "8. Reload the browser tab now and then"
+   ["8. Reload the browser tab now and then"
     "The running page remembers everything you've ever evaluated, including "
     "functions you've since renamed or deleted. A reload makes sure your code "
     "works from a clean start. (Drill 4)"]])
+
+(defn- habit [title & body]
+  [ui/anchor (habit-id title)
+   [:div {:style {:margin-bottom "16px"}}
+    [:h3 {:style {:margin "0 0 4px 0" :font-size "17px"}} title]
+    (into [:div {:style {:line-height "1.5"}}] body)]])
+
+(defn- habits []
+  (into [:<>]
+        (for [[title & body] habit-list]
+          ^{:key title} (into [habit title] body))))
 
 ;; ---------------------------------------------------------------------------
 ;; Troubleshooting
 ;; ---------------------------------------------------------------------------
 
 (defn- troubleshooting []
-  [c/section {:title "When things go wrong"}
+  [:<>
    [table ["Symptom" "What's going on" "What to do"]
     [["\"No available JS runtime\""
       "No browser tab is connected to run your code"
@@ -201,7 +211,7 @@
      [c/button {:on-click practice/say-hello!} "Say hello"]]]])
 
 (defn- practice []
-  [c/section {:title "Practice makes fluent"}
+  [:<>
    [c/paragraph
     "Reading about the REPL only gets you so far - it's a skill, like touch "
     "typing. Open " [:code practice-file] ", load it, and work through the "
@@ -222,17 +232,35 @@
      "Search for \"Getting Started\" in the Command Palette to open an "
      "interactive REPL tutorial that runs right inside VS Code."]]])
 
+(def ^:private sections
+  [{:title "How the pieces fit together" :content how-it-fits}
+   {:title "Two ways to see your changes" :content two-loops}
+   {:title "Habits that make it work" :content habits :children habit-list}
+   {:title "When things go wrong" :content troubleshooting}
+   {:title "Practice makes fluent" :content practice}])
+
+(defn- section-id [title]
+  (ui/anchor-id "repl-guide" title))
+
+(def ^:private toc-entries
+  (for [{:keys [title children]} sections
+        entry (cons {:id (section-id title) :label title :level 1}
+                    (for [[habit-title] children]
+                      {:id (habit-id habit-title) :label habit-title :level 2}))]
+    entry))
+
 (defn page []
-  [c/page
-   [c/heading {:level 1} "REPL Guide"]
-   [c/callout
-    "The REPL lets you talk to your running app while you build it. It's "
-    "wonderful when it works - but it takes some understanding and some "
-    "practice before it feels natural, and everyone gets stuck sometimes. "
-    "This page explains how it fits together, the habits that help, and what "
-    "to do when it misbehaves."]
-   [how-it-fits]
-   [two-loops]
-   [habits]
-   [troubleshooting]
-   [practice]])
+  [c/page {:max-width "1200px"}
+   [ui/with-table-of-contents {:top-id "repl-guide-top" :entries toc-entries}
+    [c/heading {:level 1} "REPL Guide"]
+    [c/callout
+     "The REPL lets you talk to your running app while you build it. It's "
+     "wonderful when it works - but it takes some understanding and some "
+     "practice before it feels natural, and everyone gets stuck sometimes. "
+     "This page explains how it fits together, the habits that help, and what "
+     "to do when it misbehaves."]
+    (for [{:keys [title content]} sections]
+      ^{:key title}
+      [ui/anchor (section-id title)
+       [c/section {:title title}
+        [content]]])]])
