@@ -6,6 +6,7 @@
             [scratchpad.ui :as ui]
             [scratchpad.views.gallery :as gallery]
             [scratchpad.views.home :as home]
+            [scratchpad.views.js-interop :as js-interop]
             [scratchpad.views.repl-guide :as repl-guide]
             [scratchpad.views.lessons.session-1 :as lesson-1]
             [scratchpad.views.lessons.session-2 :as lesson-2]
@@ -22,7 +23,8 @@
    {:id :session-4 :label "Session 4"}
    {:id :playground :label "Playground"}
    {:id :components :label "Components"}
-   {:id :repl-guide :label "REPL Guide"}])
+   {:id :repl-guide :label "REPL Guide"}
+   {:id :js-interop :label "JS Interop"}])
 
 (defn route-from-url
   "Which page (and which tab on it) to show, from the #/... part of the URL,
@@ -63,4 +65,5 @@
                                       :homework [later-sessions/homework 4]}]
           :playground [playground/page]
           :components [gallery/page]
-          :repl-guide [repl-guide/page]))]])))
+          :repl-guide [repl-guide/page]
+          :js-interop [js-interop/page]))]])))

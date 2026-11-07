@@ -64,7 +64,8 @@
 
 (defn nav-bar
   "The site navigation. `views` is a list of maps with :id and :label.
-  It stays at the top of the window as you scroll (position: sticky)."
+  It stays at the top of the window as you scroll (position: sticky), and
+  scrolls sideways if it doesn't fit (e.g. on a phone)."
   [views current]
   [:nav {:style {:position "sticky"
                  :top 0
@@ -75,12 +76,15 @@
                  :display "flex"
                  :gap "4px"
                  :padding "0 16px"
+                 :overflow-x "auto"
                  :background-color "#24292f"}}
    (for [{:keys [id label]} views]
      ^{:key id}
      [:a {:href (str "#/" (name id))
           :style {:display "flex"
                   :align-items "center"
+                  :flex-shrink 0
+                  :white-space "nowrap"
                   :padding "0 12px"
                   :color "white"
                   :text-decoration "none"
@@ -152,11 +156,12 @@
 
   `top-id` is the DOM id of the top of the page. `entries` is a list of
   {:id ... :label ... :level 1-or-2}, where each :id belongs to an
-  element on the page (see `anchor`)."
+  element on the page (see `anchor`).
+
+  The columns are set in css/style.css (.toc-layout), which hides the table
+  of contents on narrow screens like phones."
   [{:keys [top-id entries]} & children]
-  [:div {:style {:display "grid"
-                 :grid-template-columns "170px minmax(0, 1fr)"
-                 :gap "32px"}}
+  [:div {:class "toc-layout"}
    [table-of-contents top-id entries]
    (into [:div {:id top-id
                 :style {:scroll-margin-top (str (+ nav-height-px 16) "px")}}]

@@ -10,9 +10,34 @@ body {
 
 code {
     font-family: ui-monospace, Menlo, Consolas, monospace;
+    /* long file paths can break onto the next line on narrow screens */
+    overflow-wrap: break-word;
 }
 
 /* The draggable divider in the in-browser Playground */
 .playground-divider:hover .playground-divider-line {
     background-color: #54aeff !important;
+}
+
+/* Pages with a floating table of contents (ui/with-table-of-contents).
+   On narrow screens, like phones, the table of contents is hidden so the
+   page gets the whole width. */
+.toc-layout {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr);
+    gap: 32px;
+}
+
+@media (max-width: 800px) {
+    .toc-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .toc-layout > nav {
+        display: none;
+    }
+}
+
+/* Text boxes never grow wider than the space they're in */
+input, textarea {
+    max-width: 100%;
 }
