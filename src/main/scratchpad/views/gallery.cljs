@@ -193,6 +193,7 @@
 
 (defn- tab-bar [current on-select copy-text]
   [:div {:style {:display "flex"
+                 :flex-wrap "wrap"
                  :align-items "flex-end"
                  :border-bottom "1px solid #d0d7de"
                  :margin-bottom "6px"}}

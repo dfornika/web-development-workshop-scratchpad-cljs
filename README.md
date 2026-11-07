@@ -27,6 +27,7 @@ A ready-to-go ClojureScript ([shadow-cljs](https://github.com/thheller/shadow-cl
 | **Playground** | Your own page to experiment with | `src/main/scratchpad/playground.cljs` |
 | **Components** | Ready-made components, with editable examples, source and HTML | (read-only: `components.cljs`) |
 | **REPL Guide** | How REPL-driven development works, habits, troubleshooting, and practice drills | `src/main/scratchpad/repl_practice.cljs` |
+| **JS Interop** | Using JavaScript (browser built-ins and npm libraries) from ClojureScript, with a cheat sheet and live examples | |
 
 ## Live coding cheat sheet
 

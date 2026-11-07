@@ -90,7 +90,9 @@
      [page-card "#/components" "Components"
       "Ready-made building blocks for your pages, with examples you can edit and copy, the source code behind each one, and the HTML it turns into."]
      [page-card "#/repl-guide" "REPL Guide"
-      "How live coding with the REPL works, habits that make it reliable, what to do when it misbehaves, and drills to practise."]]]
+      "How live coding with the REPL works, habits that make it reliable, what to do when it misbehaves, and drills to practise."]
+     [page-card "#/js-interop" "JS Interop"
+      "How to use JavaScript from ClojureScript - the browser's built-in objects and npm libraries - with a cheat sheet and live examples."]]]
 
    [c/section {:title "Getting started"}
     [c/grid {:columns 2}
