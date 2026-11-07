@@ -1,0 +1,86 @@
+# Builds the standalone, single-file version of the site (`npm run bundle`)
+# and publishes it to GitHub Pages:
+#   https://dfornika.github.io/web-development-workshop-scratchpad-cljs/
+#
+# Runs on every push to main, or by hand from the Actions tab
+# ("Run workflow"). The single HTML file is also attached to each run as a
+# downloadable artifact, for sharing by email or on a network drive.
+
+name: Publish standalone site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deployment at a time; don't cancel one that's in progress.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Same Java and Clojure versions as the devcontainer
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: DeLaGuardo/setup-clojure@13.7.0
+        with:
+          cli: 1.12.6.1673
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Cache Clojure dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+          key: clojure-${{ runner.os }}-${{ hashFiles('deps.edn') }}
+          restore-keys: clojure-${{ runner.os }}-
+
+      - run: npm ci
+
+      - name: Build the single-file site
+        run: npm run bundle
+
+      - name: Arrange files for GitHub Pages
+        run: |
+          mkdir -p site
+          cp dist/scratchpad.html site/index.html
+
+      - name: Attach the single HTML file to this run
+        uses: actions/upload-artifact@v7
+        with:
+          name: scratchpad-standalone
+          path: dist/scratchpad.html
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
