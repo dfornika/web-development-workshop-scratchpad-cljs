@@ -48,7 +48,7 @@
                              :run (fn [^js view]
                                     (run :on-load (.. view -state -doc toString)))}]))))
 
-(defn- make-view [parent doc callbacks {:keys [line-numbers? max-height read-only? language]
+(defn- make-view [parent doc callbacks {:keys [line-numbers? max-height read-only? language font-size]
                                          :or {line-numbers? true language :clojure}}]
   (EditorView.
    #js {:parent parent
@@ -59,6 +59,9 @@
                                   theme
                                   (if max-height
                                     (.theme EditorView #js {"&" #js {:max-height max-height}})
+                                    #js [])
+                                  (if font-size
+                                    (.theme EditorView #js {"&" #js {:font-size font-size}})
                                     #js [])
                                   ;; wrap long lines rather than scrolling sideways - except
                                   ;; in read-only code, where wrapping would break up forms
@@ -107,6 +110,7 @@
      :max-height   e.g. \"300px\": grow with the text up to this height, then scroll
      :read-only?   for showing code that can't be edited (default false)
      :language     :clojure (default) or :html
+     :font-size    e.g. \"16px\" (default 14px)
      :style        styles for the surrounding box"
   [_opts]
   (let [view (atom nil)

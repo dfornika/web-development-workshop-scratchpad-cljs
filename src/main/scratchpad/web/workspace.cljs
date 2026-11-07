@@ -233,15 +233,16 @@
   "Show the workspace `ws`. Options:
      :help           shown across the top
      :preview-label  the heading over the right-hand side
+     :top-offset-px  extra space taken above the workspace (besides the nav bar)
    `preview` is what to show on the right (it scrolls on its own)."
-  [{:keys [files current view-ref split] :as ws} {:keys [help preview-label]} preview]
+  [{:keys [files current view-ref split] :as ws} {:keys [help preview-label top-offset-px] :or {top-offset-px 0}} preview]
   (r/with-let [container-ref (atom nil)
                _ (when (nil? @split) (reset! split (load-split ws)))]
     (let [index @current
           file (nth files index)]
       ;; Exactly fills the window below the nav bar, so the page itself never
       ;; scrolls - the editor, the output and the preview each scroll on their own.
-      [:div {:style {:height (str "calc(100vh - " ui/nav-height-px "px)")
+      [:div {:style {:height (str "calc(100vh - " (+ ui/nav-height-px top-offset-px) "px)")
                      :box-sizing "border-box"
                      :padding "12px 16px"
                      :display "flex"
