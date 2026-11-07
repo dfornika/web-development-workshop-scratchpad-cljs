@@ -12,7 +12,7 @@
 
 (def overrides
   {:playground [web-playground/page]
-   :session-1 [web-session-1/page]})
+   :session-1-homework [web-session-1/page]})
 
 (defn render []
   (rdomc/render @root [app/app overrides]))
@@ -22,7 +22,7 @@
   (render))
 
 (defn- sync-view-with-url! []
-  (swap! db assoc :view (app/view-from-url)))
+  (swap! db merge (app/route-from-url)))
 
 (defn ^:export init []
   ;; lets pages (like Home) know they're in the in-browser version

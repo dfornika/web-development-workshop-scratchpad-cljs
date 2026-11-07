@@ -44,7 +44,9 @@
            :style {:opacity (if ready? 1 0.7)}}
    [c/paragraph {:style {:margin-top 0}} description]
    (if ready?
-     [c/link {:href (str "#/session-" n)} "Go to the homework →"]
+     [c/row {:gap "16px"}
+      [c/link {:href (str "#/session-" n "/lesson")} "Lesson slides →"]
+      [c/link {:href (str "#/session-" n "/homework")} "Homework →"]]
      [c/tag "Coming soon"])])
 
 (defn- page-card [href title description]
@@ -80,7 +82,7 @@
    [c/section {:title "How to use this site"}
     [c/grid {:columns 2}
      [page-card "#/session-1" "Session pages"
-      "Homework for each session. Every exercise has a live panel that shows what your code does as you work on it."]
+      "Each session has a Lesson (slides) and Homework. Every homework exercise has a live panel that shows what your code does as you work on it."]
      [page-card "#/playground" "Playground"
       "A page that's all yours. Change it however you like - layout, colors, text, images - and see the result straight away."]
      [page-card "#/components" "Components"

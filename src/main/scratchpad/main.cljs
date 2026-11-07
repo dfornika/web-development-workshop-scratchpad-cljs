@@ -28,7 +28,7 @@
 (defn- sync-view-with-url!
   "Store the page selected in the URL (e.g. #/session-1) in the db."
   []
-  (swap! db assoc :view (app/view-from-url)))
+  (swap! db merge (app/route-from-url)))
 
 
 (defn main

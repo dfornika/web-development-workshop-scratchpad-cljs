@@ -2,6 +2,7 @@
   "The Session 1 page for the in-browser version: edit the homework files
   right on the page, with the exercise panels updating alongside."
   (:require [scratchpad.components :as c]
+            [scratchpad.views.session :as session]
             [scratchpad.views.session-1 :as session-1]
             [scratchpad.web.sci :as sci]
             [scratchpad.web.workspace :as workspace]
@@ -41,5 +42,8 @@
    "Your edits are saved in this browser only."])
 
 (defn page []
-  [workspace/view workspace {:help help :preview-label "Your results"}
+  [workspace/view workspace {:help help
+                             :preview-label "Your results"
+                             ;; it sits under the Lesson | Homework tabs
+                             :top-offset-px session/subnav-height-px}
    [session-1/page {:lookup sci-lookup :in-browser? true}]])
