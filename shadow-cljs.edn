@@ -7,16 +7,19 @@
                           {:init-fn scratchpad.main/init}}
                 :build-hooks [(shadow.cljs.build-report/hook {:output-to "build-reports/report.html"})]
                 :release {:compiler-options {:optimizations :simple}}}
-          ;; Same app, compiled for `npm run bundle` (see scripts/bundle.mjs).
-          ;; Kept separate from :app so it never overwrites the dev build.
+          ;; The single-file version (`npm run bundle`, see scripts/bundle.mjs),
+          ;; which is also what GitHub Pages publishes. It's the in-browser
+          ;; version (same as :web), so people without Codespaces can edit the
+          ;; Playground right on the page.
           :bundle {:target :browser
                    :output-dir "target/bundle/js"
                    :asset-path "js"
                    :modules {:main
-                             {:init-fn scratchpad.main/init}}
+                             {:init-fn scratchpad.web.main/init}}
                    :compiler-options {:optimizations :advanced}}
-          ;; The in-browser version of the site, where code can be edited on
-          ;; the page (see src/main/scratchpad/web/).
+          ;; The in-browser version, for development (`npm run dev:web`):
+          ;; the Playground's code is edited on the page and run by SCI
+          ;; (see src/main/scratchpad/web/). Served at /web.html.
           :web {:target :browser
                 ;; served at http://localhost:8000/web.html
                 :output-dir "resources/public/web-js"

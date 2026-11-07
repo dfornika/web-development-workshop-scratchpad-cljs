@@ -97,19 +97,33 @@ Then open those files, load them into the REPL, and compare them with yours.
 | `src/main/scratchpad/ui.cljs`, `views/`, `macros.clj` | Plumbing for the built-in pages |
 | `resources/public/` | `index.html`, CSS, images and data files served at port 8000 |
 
+## Two versions of the site
+
+- **In Codespaces** (what you get when you jack in): the regular version.
+  You edit the code in VS Code and use Calva's REPL.
+- **In the browser**: a version where the Playground's code can be edited
+  right on the page, with no setup at all. It's published at
+  https://dfornika.github.io/web-development-workshop-scratchpad-cljs/ and is
+  also available as a single HTML file that works offline. The editor uses
+  the same keys as Calva: `Alt+Enter` evaluates the top-level form, `Ctrl+Enter`
+  the form at the cursor, and `Ctrl+S` loads the whole file. Edits are saved in
+  that browser only, so use **Download .cljs** to keep a copy.
+
 ## Handy commands
 
 ```bash
 npm run dev     # watch & hot-reload the app without Calva
 npm run release # optimized build into resources/public/js
-npm run bundle  # the whole app as ONE file: dist/scratchpad.html
+npm run dev:web # the in-browser version, at http://localhost:8000/web.html
+npm run bundle  # the in-browser version as ONE file: dist/scratchpad.html
 ```
 
-`npm run bundle` packs the compiled app, CSS and images into a single HTML
-file that works without a web server or internet connection. Open it straight
-from disk, put it on a shared drive, or send it to someone.
+`npm run bundle` packs the in-browser version - compiled code, CSS and
+images - into a single HTML file that works without a web server or internet
+connection. Open it straight from disk, put it on a shared drive, or send it
+to someone.
 
-Every push to `main` also builds this single-file version and publishes it at
-https://dfornika.github.io/web-development-workshop-scratchpad-cljs/ (see
-`.github/workflows/publish.yml`). Each run in the repo's **Actions** tab has the
-HTML file attached too, if you want to download it.
+Every push to `main` also builds this single-file version and publishes it to
+the GitHub Pages link above (see `.github/workflows/publish.yml`). Each run in
+the repo's **Actions** tab has the HTML file attached too, if you want to
+download it.
