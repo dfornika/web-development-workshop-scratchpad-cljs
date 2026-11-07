@@ -78,7 +78,11 @@
       "Change [c/grid {:columns 2} ...] to 3 columns, and add another card"
       "Add a [c/button ...] - copy one from the Components page"]]
 
-    [c/footer "Made with ClojureScript and Reagent"]]])
+    [c/footer
+     "Made with "
+     [c/link {:href "https://clojurescript.org/"} "ClojureScript"]
+     " and "
+     [c/link {:href "https://reagent-project.github.io/"} "Reagent"]]]])
 
 
 ;; A "rich comment" block. Nothing in here runs when the file loads - it's a

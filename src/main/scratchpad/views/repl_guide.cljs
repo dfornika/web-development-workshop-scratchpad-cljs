@@ -235,7 +235,7 @@
 (def ^:private sections
   [{:title "How the pieces fit together" :content how-it-fits}
    {:title "Two ways to see your changes" :content two-loops}
-   {:title "Habits that make it work" :content habits :children habit-list}
+   {:title "Habits that make it work" :content habits}
    {:title "When things go wrong" :content troubleshooting}
    {:title "Practice makes fluent" :content practice}])
 
@@ -243,11 +243,8 @@
   (ui/anchor-id "repl-guide" title))
 
 (def ^:private toc-entries
-  (for [{:keys [title children]} sections
-        entry (cons {:id (section-id title) :label title :level 1}
-                    (for [[habit-title] children]
-                      {:id (habit-id habit-title) :label habit-title :level 2}))]
-    entry))
+  (for [{:keys [title]} sections]
+    {:id (section-id title) :label title :level 1}))
 
 (defn page []
   [c/page {:max-width "1200px"}

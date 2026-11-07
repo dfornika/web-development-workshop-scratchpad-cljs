@@ -8,6 +8,7 @@
   keys - since it takes a while to get used to. We only use its syntax
   highlighting, plus a highlight on matching brackets."
   (:require ["@codemirror/commands" :refer [defaultKeymap history historyKeymap indentWithTab]]
+            ["@codemirror/lang-html" :refer [html]]
             ["@codemirror/language" :refer [bracketMatching defaultHighlightStyle syntaxHighlighting]]
             ["@codemirror/state" :refer [EditorState Prec]]
             ["@codemirror/view" :refer [EditorView drawSelection highlightActiveLine keymap lineNumbers]]
@@ -47,8 +48,8 @@
                              :run (fn [^js view]
                                     (run :on-load (.. view -state -doc toString)))}]))))
 
-(defn- make-view [parent doc callbacks {:keys [line-numbers? max-height]
-                                         :or {line-numbers? true}}]
+(defn- make-view [parent doc callbacks {:keys [line-numbers? max-height read-only? language]
+                                         :or {line-numbers? true language :clojure}}]
   (EditorView.
    #js {:parent parent
         :state (.create EditorState
@@ -59,16 +60,25 @@
                                   (if max-height
                                     (.theme EditorView #js {"&" #js {:max-height max-height}})
                                     #js [])
-                                  ;; wrap long lines rather than scrolling sideways
-                                  (.-lineWrapping EditorView)
+                                  ;; wrap long lines rather than scrolling sideways - except
+                                  ;; in read-only code, where wrapping would break up forms
+                                  (if read-only? #js [] (.-lineWrapping EditorView))
                                   (if line-numbers? (lineNumbers) #js [])
-                                  (highlightActiveLine)
+                                  (if read-only?
+                                    #js [(.of (.-readOnly EditorState) true)
+                                         (.of (.-editable EditorView) false)
+                                         ;; grey, so it doesn't look editable
+                                         (.theme EditorView #js {"&" #js {:background-color "#f6f8fa"}})]
+                                    #js [])
+                                  (if read-only? #js [] (highlightActiveLine))
                                   (drawSelection)
                                   (history)
                                   (syntaxHighlighting defaultHighlightStyle)
-                                  ;; Clojure syntax only. (clojure-mode/default_extensions
-                                  ;; and clojure-mode/complete_keymap would add paredit.)
-                                  (clojure-mode/syntax clojure-mode/parser)
+                                  (if (= language :html)
+                                    (html)
+                                    ;; Clojure syntax only. (clojure-mode/default_extensions
+                                    ;; and clojure-mode/complete_keymap would add paredit.)
+                                    (clojure-mode/syntax clojure-mode/parser))
                                   (bracketMatching)
                                   (.of keymap #js [indentWithTab])
                                   (.of keymap historyKeymap)
@@ -95,6 +105,8 @@
      :view-ref     an atom that will hold the CodeMirror EditorView
      :line-numbers? show line numbers (default true)
      :max-height   e.g. \"300px\": grow with the text up to this height, then scroll
+     :read-only?   for showing code that can't be edited (default false)
+     :language     :clojure (default) or :html
      :style        styles for the surrounding box"
   [_opts]
   (let [view (atom nil)
