@@ -5,12 +5,14 @@
             [scratchpad.state :refer [db]]
             [scratchpad.ui :as ui]
             [scratchpad.views.gallery :as gallery]
+            [scratchpad.views.repl-guide :as repl-guide]
             [scratchpad.views.session-1 :as session-1]
             [scratchpad.views.later-sessions :as later-sessions]))
 
 (def views
   [{:id :playground :label "Playground"}
    {:id :components :label "Components"}
+   {:id :repl-guide :label "REPL Guide"}
    {:id :session-1  :label "Session 1"}
    {:id :sessions-2-4 :label "Sessions 2–4"}])
 
@@ -34,5 +36,6 @@
       (case current
         :playground [playground/page]
         :components [gallery/page]
+        :repl-guide [repl-guide/page]
         :session-1 [session-1/page]
         :sessions-2-4 [later-sessions/page])]]))
