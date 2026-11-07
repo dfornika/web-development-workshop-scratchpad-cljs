@@ -288,6 +288,10 @@
          [:div {:style {:flex "1 1 0"
                         :min-height 0
                         :overflow "auto"
+                        ;; contains absolutely positioned things inside it (like
+                        ;; AG Grid's hidden screen-reader helpers), so they scroll
+                        ;; with it instead of making the whole page taller
+                        :position "relative"
                         :border "1px solid #d0d7de"
                         :border-radius "6px"
                         :background-color "white"}}

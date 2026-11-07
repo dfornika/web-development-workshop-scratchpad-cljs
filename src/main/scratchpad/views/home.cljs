@@ -75,7 +75,9 @@
      [session-card 1 "Introduction to ClojureScript"
       "Data, functions, and turning hiccup into a web page. Homework: genomics-themed mini projects."
       true]
-     [session-card 2 "To be announced" "Details coming soon." false]
+     [session-card 2 "Reagent and AG Grid"
+      "React and the virtual DOM, app state in one atom, and interactive tables with AG Grid. Homework: build a mini QC dashboard."
+      true]
      [session-card 3 "To be announced" "Details coming soon." false]
      [session-card 4 "To be announced" "Details coming soon." false]]]
 
