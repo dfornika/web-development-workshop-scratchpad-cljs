@@ -208,12 +208,15 @@
     "eight drills. Each one takes a few minutes and has a visible effect here:"]
    [ui/error-boundary [practice-panel]]
    [c/paragraph {:style {:margin-top "16px"}}
-    "Two more things worth practising once you're comfortable:"]
+    "Two more things you might explore later, if you're curious:"]
    [c/bullet-list
-    [:span [:strong "Structural editing. "]
-     "Calva can move whole forms around for you (\"Expand Selection\", "
-     "\"Slurp\", \"Barf\", \"Raise\" in the Command Palette), so you rarely "
-     "type a bracket by hand. See "
+    [:span [:strong "Structural editing (entirely optional). "]
+     "Some people like editors that treat code as nested forms rather than "
+     "text, with commands like \"Slurp\" and \"Barf\" that move brackets for "
+     "you. Plenty of experienced Clojure programmers never use them, and "
+     "just type their brackets. We've turned Calva's structural editing "
+     "shortcuts off in this workshop so they don't surprise you; if you "
+     "want to try them, see "
      [c/link {:href "https://calva.io/paredit/"} "Calva's paredit guide"] "."]
     [:span [:strong "Calva's own tutorial. "]
      "Search for \"Getting Started\" in the Command Palette to open an "

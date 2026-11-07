@@ -66,8 +66,8 @@ html = html.replace(/<link\s+rel="stylesheet"\s+href="([^"]+)"[^>]*>/g, (match, 
   return `<style>\n${fs.readFileSync(file, 'utf8')}\n</style>`;
 });
 
-// Inline the favicon
-html = html.replace(/<link\s+rel="icon"([^>]*)href="([^"]+)"([^>]*)>/, (match, before, href, after) => {
+// Inline the favicon(s)
+html = html.replace(/<link\s+rel="icon"([^>]*)href="([^"]+)"([^>]*)>/g, (match, before, href, after) => {
   const file = path.join(publicDir, href);
   return fs.existsSync(file) ? `<link rel="icon"${before}href="${dataUri(file)}"${after}>` : match;
 });

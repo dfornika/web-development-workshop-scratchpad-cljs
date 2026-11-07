@@ -1,5 +1,6 @@
 {
   "calva.useLegacyReplWindowPath": false,
+  "calva.paredit.defaultKeyMap": "none",
   "calva.replConnectSequences": [
     {
       "name": "Preconfigured REPL Connect",

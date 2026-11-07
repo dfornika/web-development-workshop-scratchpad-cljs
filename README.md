@@ -108,3 +108,8 @@ npm run bundle  # the whole app as ONE file: dist/scratchpad.html
 `npm run bundle` packs the compiled app, CSS and images into a single HTML
 file that works without a web server or internet connection. Open it straight
 from disk, put it on a shared drive, or send it to someone.
+
+Every push to `main` also builds this single-file version and publishes it at
+https://dfornika.github.io/web-development-workshop-scratchpad-cljs/ (see
+`.github/workflows/publish.yml`). Each run in the repo's **Actions** tab has the
+HTML file attached too, if you want to download it.
