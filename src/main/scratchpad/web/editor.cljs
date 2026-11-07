@@ -1,8 +1,14 @@
 (ns scratchpad.web.editor
   "A ClojureScript code editor (CodeMirror 6 + Nextjournal's clojure-mode),
-  with REPL-style keybindings that mirror Calva's."
-  (:require ["@codemirror/commands" :refer [defaultKeymap history historyKeymap]]
-            ["@codemirror/language" :refer [defaultHighlightStyle syntaxHighlighting]]
+  with REPL-style keybindings that mirror Calva's.
+
+  It's deliberately a *plain* editor: you type exactly what you type.
+  clojure-mode's structural editing (paredit) is left out on purpose - no
+  auto-inserted closing brackets, no protected brackets, no slurp/barf
+  keys - since it takes a while to get used to. We only use its syntax
+  highlighting, plus a highlight on matching brackets."
+  (:require ["@codemirror/commands" :refer [defaultKeymap history historyKeymap indentWithTab]]
+            ["@codemirror/language" :refer [bracketMatching defaultHighlightStyle syntaxHighlighting]]
             ["@codemirror/state" :refer [EditorState Prec]]
             ["@codemirror/view" :refer [EditorView drawSelection highlightActiveLine keymap lineNumbers]]
             ["@nextjournal/clojure-mode" :as clojure-mode]
@@ -56,8 +62,11 @@
                                   (drawSelection)
                                   (history)
                                   (syntaxHighlighting defaultHighlightStyle)
-                                  clojure-mode/default_extensions
-                                  (.of keymap clojure-mode/complete_keymap)
+                                  ;; Clojure syntax only. (clojure-mode/default_extensions
+                                  ;; and clojure-mode/complete_keymap would add paredit.)
+                                  (clojure-mode/syntax clojure-mode/parser)
+                                  (bracketMatching)
+                                  (.of keymap #js [indentWithTab])
                                   (.of keymap historyKeymap)
                                   (.of keymap defaultKeymap)
                                   (.. EditorView -updateListener
