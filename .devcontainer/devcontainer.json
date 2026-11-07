@@ -37,7 +37,10 @@
       "settings": {
         "security.workspace.trust.banner": "never",
         "security.workspace.trust.emptyWindow": true,
-        "security.workspace.trust.enabled": false
+        "security.workspace.trust.enabled": false,
+        // Turn off Calva's structural editing (paredit) keyboard shortcuts,
+        // so typing works like any other editor. Also in .vscode/settings.json.
+        "calva.paredit.defaultKeyMap": "none"
       }
     }
   }

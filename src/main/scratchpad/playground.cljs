@@ -23,6 +23,23 @@
     "Header"]
    [:img {:src "images/logo.svg" :height "48px"}]])
 
+(defn welcome-banner
+  "A component made from scratch: plain hiccup tags ([:div ...], [:h2 ...])
+  styled with a :style map - no component library needed. Everything in
+  the component library is built exactly like this.
+
+  Try changing the colors, the border, or the rounded corners (border-radius)."
+  [title text]
+  [:div {:style {:background-color "#e6f0fa"
+                 :border "2px solid #004a87"
+                 :border-radius "12px"
+                 :padding "20px 24px"
+                 :margin-bottom "24px"}}
+   [:h2 {:style {:margin "0 0 8px 0" :color "#004a87"}}
+    title]
+   [:p {:style {:margin "0" :line-height "1.5"}}
+    text]])
+
 (defn page
   "The whole page. Add things inside the [:div ...] to see them appear."
   []
@@ -33,8 +50,42 @@
    (when-let [message (:message @db)]
      [c/callout {:kind :success} message])
 
+   ;; From here on, it's components from the library (c/...), plus the
+   ;; welcome-banner defined above. See the Components page for more.
    [c/page
-    [c/paragraph "Welcome! Edit src/main/scratchpad/playground.cljs to change this page."]]])
+    [welcome-banner
+     "Welcome to your playground!"
+     "Everything on this page comes from src/main/scratchpad/playground.cljs. Change something, save, and watch it update."]
+
+    ;; Two columns, side by side
+    [c/grid {:columns 2}
+     [c/card {:title "About our lab"}
+      [c/paragraph
+       "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod "
+       "tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim "
+       "veniam, quis nostrud exercitation ullamco laboris."]
+      [c/paragraph
+       "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum "
+       "dolore eu fugiat nulla pariatur."]]
+     [c/card {:title "Latest gel"
+              :style {:background-color "#fdf6e3"}}
+      [c/image {:src "images/gel.svg"
+                :caption "PCR products from four samples"}]]]
+
+    [c/section {:title "This week in numbers"}
+     [c/row
+      [c/stat {:label "Samples" :value 96}]
+      [c/stat {:label "Passed QC" :value 91}]
+      [c/stat {:label "Mean coverage" :value 87.4 :unit "x"}]]]
+
+    [c/section {:title "Ideas to try"}
+     [c/bullet-list
+      "Change the text in the welcome banner"
+      "Give the \"About our lab\" card a background color, like the gel card"
+      "Change [c/grid {:columns 2} ...] to 3 columns, and add another card"
+      "Add a [c/button ...] - copy one from the Components page"]]
+
+    [c/footer "Made with ClojureScript and Reagent"]]])
 
 
 ;; A "rich comment" block. Nothing in here runs when the file loads - it's a
