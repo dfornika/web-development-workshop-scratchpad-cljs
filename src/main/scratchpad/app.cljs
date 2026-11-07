@@ -25,17 +25,22 @@
       :playground)))
 
 (defn app
-  "Top-level app component."
-  []
-  (let [current (or (:view @db) :playground)]
-    [:div
-     [ui/nav-bar views current]
-     ;; keyed by page, so an error on one page doesn't follow you to the next
-     ^{:key current}
-     [ui/error-boundary
-      (case current
-        :playground [playground/page]
-        :components [gallery/page]
-        :repl-guide [repl-guide/page]
-        :session-1 [session-1/page]
-        :sessions-2-4 [later-sessions/page])]]))
+  "Top-level app component. `overrides` (optional) maps a page id to a
+  different component to show for that page - the in-browser build uses
+  it to swap in an editable Playground."
+  ([] (app {}))
+  ([overrides]
+   (let [current (or (:view @db) :playground)]
+     [:div
+      [ui/nav-bar views current]
+      ;; keyed by page, so an error on one page doesn't follow you to the next
+      ^{:key current}
+      [ui/error-boundary
+       (or
+        (get overrides current)
+        (case current
+          :playground [playground/page]
+          :components [gallery/page]
+          :repl-guide [repl-guide/page]
+          :session-1 [session-1/page]
+          :sessions-2-4 [later-sessions/page]))]])))
