@@ -47,7 +47,8 @@
                              :run (fn [^js view]
                                     (run :on-load (.. view -state -doc toString)))}]))))
 
-(defn- make-view [parent doc callbacks]
+(defn- make-view [parent doc callbacks {:keys [line-numbers? max-height]
+                                         :or {line-numbers? true}}]
   (EditorView.
    #js {:parent parent
         :state (.create EditorState
@@ -55,9 +56,12 @@
                              :extensions
                              #js [(repl-keymap callbacks)
                                   theme
+                                  (if max-height
+                                    (.theme EditorView #js {"&" #js {:max-height max-height}})
+                                    #js [])
                                   ;; wrap long lines rather than scrolling sideways
                                   (.-lineWrapping EditorView)
-                                  (lineNumbers)
+                                  (if line-numbers? (lineNumbers) #js [])
                                   (highlightActiveLine)
                                   (drawSelection)
                                   (history)
@@ -89,6 +93,8 @@
      :on-eval      called with the text of a form to evaluate
      :on-load      called with the full text to load it (Ctrl+S)
      :view-ref     an atom that will hold the CodeMirror EditorView
+     :line-numbers? show line numbers (default true)
+     :max-height   e.g. \"300px\": grow with the text up to this height, then scroll
      :style        styles for the surrounding box"
   [_opts]
   (let [view (atom nil)
@@ -106,5 +112,5 @@
                              style)
                :ref (fn [el]
                       (when (and el (nil? @view))
-                        (reset! view (make-view el initial-doc callbacks))
+                        (reset! view (make-view el initial-doc callbacks opts))
                         (when view-ref (reset! view-ref @view))))}])})))
