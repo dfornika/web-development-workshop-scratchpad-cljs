@@ -32,14 +32,3 @@
     :description ~description
     :code ~(format-code form)
     :view ~form})
-
-(defmacro show-call
-  "Renders a call like `(count-bases \"ATG\")` together with its result.
-  The call happens inside the rendered component, so errors are caught by
-  the surrounding error boundary."
-  [form]
-  (let [display-form (if (and (seq? form) (symbol? (first form)))
-                       ;; show `(count-bases ...)` rather than `(s1/count-bases ...)`
-                       (cons (symbol (name (first form))) (rest form))
-                       form)]
-    `[scratchpad.ui/call-result ~(format-code display-form) (fn [] ~form)]))

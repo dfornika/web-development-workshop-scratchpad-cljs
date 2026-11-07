@@ -1,16 +1,18 @@
 (ns scratchpad.web.main
   "Entry point for the in-browser version of the site (the :web build).
-  Same pages as the regular app, except the Playground can be edited right
-  on the page."
+  Same pages as the regular app, except the Playground and the Session 1
+  homework can be edited right on the page."
   (:require [reagent.dom.client :as rdomc]
             [scratchpad.app :as app]
             [scratchpad.state :refer [db reload-count]]
-            [scratchpad.web.playground :as web-playground]))
+            [scratchpad.web.playground :as web-playground]
+            [scratchpad.web.session-1 :as web-session-1]))
 
 (defonce root (atom nil))
 
 (def overrides
-  {:playground [web-playground/page]})
+  {:playground [web-playground/page]
+   :session-1 [web-session-1/page]})
 
 (defn render []
   (rdomc/render @root [app/app overrides]))
@@ -28,6 +30,7 @@
   (sync-view-with-url!)
   (.addEventListener js/window "hashchange" sync-view-with-url!)
   (web-playground/init!)
+  (web-session-1/init!)
   (when-let [el (.getElementById js/document "app")]
     (reset! root (rdomc/create-root el)))
   (render))
