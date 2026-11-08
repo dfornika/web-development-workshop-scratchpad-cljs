@@ -87,6 +87,8 @@
       "Each session has a Lesson (slides) and Homework. Every homework exercise has a live panel that shows what your code does as you work on it."]
      [page-card "#/playground" "Playground"
       "A page that's all yours. Change it however you like - layout, colors, text, images - and see the result straight away."]
+     [page-card "#/fetching" "Fetching Data"
+      "How a page loads its data: fetching JSON files with cljs-http and core.async, and putting it in the app's state - with live examples."]
      [page-card "#/data-explorer" "Data Explorer"
       "Open a CSV file and get a table of it - plus the code that makes the table, ready for you to change. Your file stays in your browser."]
      [page-card "#/components" "Components"

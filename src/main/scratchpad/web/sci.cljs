@@ -13,6 +13,7 @@
             [sci.core :as sci]
             [scratchpad.components]
             [scratchpad.data :as data]
+            [scratchpad.web.sci-async :as sci-async]
             [scratchpad.state :as state]))
 
 ;; Bumping this redraws the preview. Code in the editor can do that by
@@ -31,6 +32,8 @@
 (defonce ctx
   (sci/init
    {:namespaces (merge (:namespaces sci-reagent/config)
+                       ;; core.async (with a stand-in go and <!) and cljs-http
+                       sci-async/namespaces
                        {;; newer clojure.core functions that SCI doesn't have yet
                         'clojure.core {'parse-long parse-long
                                        'parse-double parse-double

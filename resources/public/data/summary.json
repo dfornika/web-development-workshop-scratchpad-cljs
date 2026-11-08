@@ -1,0 +1,10 @@
+{
+  "last_updated": "2026-06-25T06:00:00",
+  "run_count": 4,
+  "sample_count": 48,
+  "qc_status_counts": {
+    "PASS": 22,
+    "WARN": 13,
+    "FAIL": 13
+  }
+}

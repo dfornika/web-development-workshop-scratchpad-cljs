@@ -4,6 +4,7 @@
   (:require [scratchpad.playground :as playground]
             [scratchpad.views.basics :as basics]
             [scratchpad.views.data-explorer :as data-explorer]
+            [scratchpad.views.fetching :as fetching]
             [scratchpad.state :refer [db]]
             [scratchpad.ui :as ui]
             [scratchpad.views.gallery :as gallery]
@@ -28,7 +29,8 @@
    {:id :components :label "Components"}
    {:id :basics :label "CLJS Basics"}
    {:id :repl-guide :label "REPL Guide"}
-   {:id :js-interop :label "JS Interop"}])
+   {:id :js-interop :label "JS Interop"}
+   {:id :fetching :label "Fetching Data"}])
 
 (defn route-from-url
   "Which page (and which tab on it) to show, from the #/... part of the URL,
@@ -72,4 +74,5 @@
           :components [gallery/page]
           :basics [basics/page]
           :repl-guide [repl-guide/page]
-          :js-interop [js-interop/page]))]])))
+          :js-interop [js-interop/page]
+          :fetching [fetching/page]))]])))
