@@ -25,6 +25,7 @@ A ready-to-go ClojureScript ([shadow-cljs](https://github.com/thheller/shadow-cl
 | **Session 2** | **Lesson**: Reagent and AG Grid. **Homework**: tables, and a mini QC dashboard | `src/main/scratchpad/sessions/session_2.cljs` and `session_2_bonus.cljs` |
 | **Sessions 3–4** | Coming soon | |
 | **Playground** | Your own page to experiment with | `src/main/scratchpad/playground.cljs` |
+| **Data Explorer** | Open a CSV file (it stays in your browser) and get an AG Grid table of it, plus the code that makes it, to edit live | (in the page) |
 | **Components** | Ready-made components, with editable examples, source and HTML | (read-only: `components.cljs`) |
 | **CLJS Basics** | A beginner-friendly tour of ClojureScript and its everyday idioms, with live examples | |
 | **REPL Guide** | How REPL-driven development works, habits, troubleshooting, and practice drills | `src/main/scratchpad/repl_practice.cljs` |

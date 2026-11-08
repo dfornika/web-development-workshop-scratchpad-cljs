@@ -87,6 +87,8 @@
       "Each session has a Lesson (slides) and Homework. Every homework exercise has a live panel that shows what your code does as you work on it."]
      [page-card "#/playground" "Playground"
       "A page that's all yours. Change it however you like - layout, colors, text, images - and see the result straight away."]
+     [page-card "#/data-explorer" "Data Explorer"
+      "Open a CSV file and get a table of it - plus the code that makes the table, ready for you to change. Your file stays in your browser."]
      [page-card "#/components" "Components"
       "Ready-made building blocks for your pages, with examples you can edit and copy, the source code behind each one, and the HTML it turns into."]
      [page-card "#/basics" "ClojureScript Basics"
