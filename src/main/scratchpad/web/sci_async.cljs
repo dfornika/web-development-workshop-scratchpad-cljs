@@ -37,6 +37,47 @@
              (async/close! ch)))
     ch))
 
+;; ---------------------------------------------------------------------------
+;; Slowing requests down, for demonstrations
+;;
+;; Files on the same server arrive in a few milliseconds - too fast to see
+;; that a channel (or promise) comes back first, and the data after. The
+;; Fetching Data page sets this while it's open (with a checkbox to turn it
+;; off), so the waiting is visible. 0 means no delay.
+;; ---------------------------------------------------------------------------
+
+(defonce request-delay-ms (atom 0))
+
+(defn- slowed
+  "A channel that gets what `ch` gives, request-delay-ms later."
+  [ch]
+  (let [ms @request-delay-ms]
+    (if (pos? ms)
+      (let [out (async/chan 1)]
+        (async/take! ch (fn [v]
+                          (js/setTimeout #(if (some? v)
+                                            (async/put! out v (fn [_] (async/close! out)))
+                                            (async/close! out))
+                                         ms)))
+        out)
+      ch)))
+
+(defn- slow [request-fn]
+  (fn [& args] (slowed (apply request-fn args))))
+
+;; js/fetch too: code run by SCI calls the browser's own fetch, so it's
+;; wrapped here, once. It only adds a delay while request-delay-ms is set.
+(defonce ^:private _slow-fetch
+  (when (exists? js/fetch)
+    (let [original-fetch js/fetch]
+      (set! (.-fetch js/globalThis)
+            (fn [& args]
+              (let [ms @request-delay-ms
+                    response (.apply original-fetch js/globalThis (into-array args))]
+                (if (pos? ms)
+                  (.then response (fn [r] (js/Promise. (fn [resolve] (js/setTimeout #(resolve r) ms)))))
+                  response)))))))
+
 ;; SCI knows a function is a macro by :sci/macro in the function's own
 ;; metadata (not the var's), so these are made with with-meta.
 
@@ -65,8 +106,8 @@
                      ;; used by go and <!
                      'promise->chan promise->chan
                      'chan->promise chan->promise}
-   'cljs-http.client {'get http/get
-                      'post http/post
-                      'put http/put
-                      'delete http/delete
-                      'request http/request}})
+   'cljs-http.client {'get (slow http/get)
+                      'post (slow http/post)
+                      'put (slow http/put)
+                      'delete (slow http/delete)
+                      'request (slow http/request)}})

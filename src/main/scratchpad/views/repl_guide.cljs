@@ -132,7 +132,9 @@
     [:code "(tap> data)"] " sends a value to the tap panel - the " [:code "tap>"]
     " button at the bottom right of every page - where you can fold and "
     "unfold nested data, or see it pretty-printed. It works from the REPL, "
-    "from your code, and from the editors on this site. In Codespaces, "
+    "from your code, and from the editors on this site. "
+    [:code "c/tap->"] " does the same in the middle of a " [:code "->"] " or "
+    [:code "->>"] " pipeline: it taps the value and passes it on. In Codespaces, "
     "tapped values also go to the shadow-cljs Inspect page (port 9630). "
     "(Drill 7)"]
    ["7. Keep state in defonce atoms"

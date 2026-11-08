@@ -315,6 +315,7 @@
      "            [cljs.pprint :as pp]\n"
      (when uses-str? "            [clojure.string :as str]\n")
      "            [reagent.core :as r]\n"
+     "            [scratchpad.components :as c]\n"
      "            [scratchpad.data :as data]))\n"
      "\n"
      ";; ---------------------------------------------------------------------------\n"
@@ -415,6 +416,7 @@
      "  (first rows)\n"
      "  (pp/print-table (take 5 rows))\n"
      "  (tap> (take 20 rows))   ; look at them in the tap panel (bottom right)\n"
+     "  (->> rows (take 5) c/tap-> (map :" (second (first columns)) "))   ; tap mid-pipeline\n"
      (when category
        (str "  (frequencies (map :" category " rows))\n"))
      (when number-field

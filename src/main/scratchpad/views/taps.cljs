@@ -20,14 +20,60 @@
   "How many entries of a big collection to show when it's unfolded."
   100)
 
-;; [{:id 1 :time #inst "..." :value ...}], newest first
+;; [{:id 1 :time #inst "..." :source "scratchpad.playground" :value ...}],
+;; newest first
 (defonce taps (r/atom ()))
 (defonce ^:private next-id (atom 0))
 (defonce ^:private panel (r/atom {:open? false :unseen 0 :height 300}))
 
+;; ---------------------------------------------------------------------------
+;; Where a value was tapped from
+;;
+;; tap> only gets the value, not where it was called. So when tap> is
+;; called, *exec-tap-fn* (below) works out the namespace straight away -
+;; before tap> hands the value to the taps, a moment later - and passes it
+;; along in *source*.
+;; ---------------------------------------------------------------------------
+
+(def ^:dynamic *source* nil)
+
+(def current-sci-ns
+  "For code run by SCI (the editors on the site): a function that gives the
+  namespace SCI is running code in, or nil. Set by scratchpad.web.sci."
+  nil)
+
+(def ^:private not-yours
+  ;; namespaces that call tap> on your behalf, or that your code is called from
+  ["cljs." "cljs-http." "clojure." "goog." "shadow." "reagent." "sci."
+   "module$" "scratchpad.components" "scratchpad.views.taps" "scratchpad.web."])
+
+(defn- source-from-stack
+  "In Codespaces (a development build), every namespace is its own file,
+  like .../cljs-runtime/scratchpad.sessions.session_1.js. The first one in
+  the stack trace that isn't library code is the one that called tap>.
+  Code evaluated at the REPL has no file of its own: that's \"REPL\"."
+  []
+  (let [stack (str (.-stack (js/Error.)))
+        names (for [[_ file] (re-seq #"cljs-runtime/([^/:?#\s()]+?)\.js" stack)]
+                (str/replace file "_" "-"))]
+    (or (first (remove (fn [n] (some #(str/starts-with? n %) not-yours)) names))
+        (when (str/includes? stack "shadow.cljs.devtools.client") "REPL"))))
+
+(defn- tap-source []
+  (or (when current-sci-ns (current-sci-ns))
+      (source-from-stack)))
+
+;; Like the standard one (run the taps a moment later, so tap> returns
+;; straight away), plus the source. Not defonce, so a reload uses the latest.
+(set! *exec-tap-fn*
+      (fn [f]
+        (let [source (try (tap-source) (catch :default _ nil))]
+          (boolean (js/setTimeout #(binding [*source* source] (f)) 0)))))
+
 (defn- receive! [value]
   (swap! taps (fn [ts] (take max-taps (conj ts {:id (swap! next-id inc)
                                                  :time (js/Date.)
+                                                 :source *source*
                                                  :value value}))))
   (when-not (:open? @panel)
     (swap! panel update :unseen inc)))
@@ -55,10 +101,20 @@
 
 (defn pprint-str
   "`v` pretty-printed, as a string. Long (or endless) sequences are cut
-  off, so this always finishes."
-  [v]
-  (binding [*print-length* max-children *print-level* 10]
-    (str/trimr (with-out-str (pp/pprint v)))))
+  off after `max-length` items (default 100), so this always finishes."
+  ([v] (pprint-str v max-children))
+  ([v max-length]
+   (binding [*print-length* max-length *print-level* 10]
+     (str/trimr (with-out-str (pp/pprint v))))))
+
+(defn- copy!
+  "Copies `v`, pretty-printed, to the clipboard. Calls `done` with true if
+  it worked. (Copied in full, up to 10,000 items per sequence.)"
+  [v done]
+  (try
+    (-> (.writeText (.-clipboard js/navigator) (pprint-str v 10000))
+        (.then #(done true) #(done false)))
+    (catch :default _ (done false))))
 
 (def ^:private colors
   {:string "#0a7d2c" :number "#0550ae" :keyword "#8250df" :nil "#8c959f"
@@ -172,16 +228,25 @@
 (defn- tap-entry
   "One tapped value. Form-2, so whether it's shown as text is remembered."
   [_tap]
-  (let [as-text? (r/atom false)]
-    (fn [{:keys [id time value]}]
+  (let [as-text? (r/atom false)
+        copied (r/atom nil)]   ; nil, :ok or :failed - shown for a moment
+    (fn [{:keys [id time source value]}]
       [:div {:style {:padding "8px 12px" :border-bottom "1px solid #eaeef2"}}
        [:div {:style {:display "flex" :gap "8px" :align-items "center"
                       :font-size "12px" :color (:muted colors) :margin-bottom "4px"}}
-        [:span "#" id " · " (time-str time)]
+        [:span "#" id " · " (time-str time)
+         (when source
+           [:<> " · from " [:code {:style {:color "#24292f"}} source]])]
         [:span {:style {:flex 1}}]
         [small-button {:on-click #(swap! as-text? not)
                        :title "Show it folded, or as pretty-printed text"}
          (if @as-text? "fold" "text")]
+        [small-button {:on-click (fn []
+                                   (copy! value (fn [ok?]
+                                                  (reset! copied (if ok? :ok :failed))
+                                                  (js/setTimeout #(reset! copied nil) 1500))))
+                       :title "Copy it to the clipboard, as pretty-printed text"}
+         (case @copied :ok "Copied ✓" :failed "Couldn't copy" "Copy")]
         [small-button {:on-click (fn [] (swap! taps (fn [ts] (remove #(= id (:id %)) ts))))
                        :title "Remove this one"}
          "×"]]
@@ -238,10 +303,11 @@
          "Playground, the editors on the reference pages - try"
          [:pre {:style (merge mono {:margin "8px 0" :color "#24292f"})}
           "(tap> {:sample \"S001\" :reads [1200 3400 5600]})"]
-         "and it shows up here. " [:code "tap>"] " returns " [:code "true"]
-         ", so you can also drop it into the middle of your code without "
-         "changing what it does: " [:code "(doto value tap>)"] " taps a value "
-         "and passes it straight through."]
+         "and it shows up here. To tap a value in the middle of a "
+         [:code "->"] " or " [:code "->>"] " pipeline, use " [:code "c/tap->"]
+         " - it taps the value and passes it straight on:"
+         [:pre {:style (merge mono {:margin "8px 0" :color "#24292f"})}
+          "(->> samples (filter :passed) c/tap-> (map :reads))"]]
         (for [t ts]
           ^{:key (:id t)} [tap-entry t]))]]))
 

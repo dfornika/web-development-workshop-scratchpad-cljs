@@ -6,10 +6,12 @@
   Every example can be edited and run on the page. They're run by SCI, in
   the namespace set up by `setup-source` (shown on the page), against the
   real files in resources/public/data/."
-  (:require [scratchpad.components :as c]
+  (:require [reagent.core :as r]
+            [scratchpad.components :as c]
             [scratchpad.ui :as ui]
             [scratchpad.views.reference :as reference :refer [mono snippet table]]
-            [scratchpad.web.sci :as sci]))
+            [scratchpad.web.sci :as sci]
+            [scratchpad.web.sci-async :as sci-async]))
 
 ;; ---------------------------------------------------------------------------
 ;; Where the examples run
@@ -47,6 +49,32 @@
   [sym]
   @examples-ns   ; make sure the namespace exists
   (sci/resolve-var (symbol "my-site.data" (name sym))))
+
+;; Requests here are slowed down (while this page is open), so you can see
+;; the channel arrive first and the data after. The choice is remembered
+;; while the site is open.
+(def ^:private delay-ms 1000)
+(defonce ^:private slow? (r/atom true))
+
+(defn- set-delay! []
+  (reset! sci-async/request-delay-ms (if @slow? delay-ms 0)))
+
+(defn- slow-toggle
+  "The checkbox that turns the pretend delay on and off."
+  []
+  [:label {:style {:display "flex" :align-items "center" :gap "8px"
+                   :margin "12px 0" :padding "8px 12px"
+                   :border "1px solid #d4a72c" :border-radius "6px"
+                   :background-color "#fff8c5" :font-size "14px" :cursor "pointer"}}
+   [:input {:type "checkbox"
+            :checked @slow?
+            :on-change (fn [e]
+                         (reset! slow? (.. e -target -checked))
+                         (set-delay!))}]
+   [:span [:strong "Slow down the requests on this page"]
+    " - each one waits an extra second, on purpose, so you can see what "
+    "happens while it's on its way. (These files are on the same server as "
+    "the page, so they'd otherwise arrive almost instantly.)"]])
 
 ;; ---------------------------------------------------------------------------
 ;; Live views of what the examples make
@@ -164,6 +192,7 @@
     [:em "doesn't"] " wait for the answer - it gives back a " [:em "channel"]
     " straight away, and the response arrives on it later. Run this one "
     "and watch: first the channel, then the response."]
+   [slow-toggle]
    [fetches "(http/get \"data/summary.json\")"]
    [c/paragraph
     "The response is a map. The useful parts are " [:code ":status"]
@@ -375,7 +404,7 @@
      "Often blocked by the browser (CORS), unless that site allows it"
      "Keep the data on the same server as the site, or ask whoever runs the other site"]]])
 
-(defn page []
+(defn- page-content []
   [reference/page
    {:id "fetching"
     :title "Fetching Data"
@@ -383,7 +412,8 @@
             "cljs-http and core.async, and putting what arrives into the app's "
             "state. " [:strong "Every example is live:"] " the ones that fetch "
             "data run when you press " [:strong "Ctrl+Enter"] " or "
-            [:strong "▶ Run"] ", against real files on this site."]
+            [:strong "▶ Run"] ", against real files on this site. (They're "
+            "slowed down a little on purpose, so you can watch them arrive.)"]
     :sections [{:title "Where the data comes from" :content where-from}
                {:title "Asking for a file: cljs-http" :content with-cljs-http}
                {:title "Waiting for it: go and <!" :content go-blocks}
@@ -393,3 +423,9 @@
                {:title "The other way: fetch and await" :content with-fetch}
                {:title "In your own project" :content own-project}
                {:title "Gotchas" :content gotchas}]}])
+
+(defn page []
+  (r/with-let [_ (set-delay!)]
+    [page-content]
+    ;; leaving the page: requests elsewhere aren't slowed down
+    (finally (reset! sci-async/request-delay-ms 0))))
