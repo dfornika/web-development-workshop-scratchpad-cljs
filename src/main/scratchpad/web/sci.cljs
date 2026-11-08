@@ -4,12 +4,15 @@
   examples on the Components page. Code evaluated here gets the *real*
   Reagent, component library and app state, so it behaves just like the
   compiled code in src/main."
-  (:require ["ag-grid-community" :as ag-grid-community]
+  (:require ["ag-charts-community" :as ag-charts-community]
+            ["ag-charts-react" :as ag-charts-react]
+            ["ag-grid-community" :as ag-grid-community]
             ["ag-grid-react" :as ag-grid-react]
             [reagent.core :as r]
             [sci.configs.reagent.reagent :as sci-reagent]
             [sci.core :as sci]
             [scratchpad.components]
+            [scratchpad.data :as data]
             [scratchpad.state :as state]))
 
 ;; Bumping this redraws the preview. Code in the editor can do that by
@@ -23,18 +26,28 @@
 (def ^:private components-ns (sci/create-ns 'scratchpad.components nil))
 (def ^:private state-ns (sci/create-ns 'scratchpad.state nil))
 (def ^:private main-ns (sci/create-ns 'scratchpad.main nil))
+(def ^:private data-ns (sci/create-ns 'scratchpad.data nil))
 
 (defonce ctx
   (sci/init
    {:namespaces (merge (:namespaces sci-reagent/config)
-                       {'scratchpad.components (sci/copy-ns scratchpad.components components-ns)
+                       {;; newer clojure.core functions that SCI doesn't have yet
+                        'clojure.core {'parse-long parse-long
+                                       'parse-double parse-double
+                                       'parse-boolean parse-boolean
+                                       'parse-uuid parse-uuid}
+                        'scratchpad.components (sci/copy-ns scratchpad.components components-ns)
                         'scratchpad.state {'db (sci/copy-var state/db state-ns)}
+                        'scratchpad.data {'csv-rows (sci/copy-var data/csv-rows data-ns)
+                                          'file-name (sci/copy-var data/file-name data-ns)}
                         'scratchpad.main {'render (sci/copy-var render! main-ns)}})
     ;; allow js/alert, js/console, js/document, ...
     :classes {'js js/globalThis :allow :all}
     ;; npm libraries code typed into the page can (:require [\"...\"]), just
     ;; like compiled code can
-    :js-libs {"ag-grid-community" ag-grid-community
+    :js-libs {"ag-charts-community" ag-charts-community
+              "ag-charts-react" ag-charts-react
+              "ag-grid-community" ag-grid-community
               "ag-grid-react" ag-grid-react}}))
 
 ;; Lets c/hiccup name the components typed into the page, like

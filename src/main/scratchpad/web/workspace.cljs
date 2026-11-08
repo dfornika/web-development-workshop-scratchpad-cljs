@@ -21,7 +21,8 @@
   `files` is a vector of maps:
     :name    shown on its tab, and used when downloading, e.g. \"session_1.cljs\"
     :path    where it lives under src/main/scratchpad, e.g. \"sessions/session_1.cljs\"
-    :source  its original code"
+    :source  its original code (or a function that returns it, for code
+             that depends on something else, like the Data Explorer's)"
   [{:keys [id files]}]
   {:id id
    :files files
@@ -48,10 +49,13 @@
 (defn- forget-saved! [file]
   (try (.removeItem js/localStorage (storage-key file)) (catch :default _ nil)))
 
+(defn- original-text [{:keys [source]}]
+  (if (fn? source) (source) source))
+
 (defn- file-text
   "The text a file starts with: the saved edits, or else the original."
   [file]
-  (or (saved-text file) (:source file)))
+  (or (saved-text file) (original-text file)))
 
 ;; ---------------------------------------------------------------------------
 ;; Running code
@@ -104,9 +108,25 @@
     (when (js/confirm (str "Throw away your changes to " (:name file)
                            " and go back to the original code?"))
       (forget-saved! file)
-      (editor/set-doc! @view-ref (:source file))
+      (editor/set-doc! @view-ref (original-text file))
       (reset! log ())
-      (load-file! ws @current (:source file)))))
+      (load-file! ws @current (original-text file)))))
+
+(defn current-file-text
+  "The text of file `index` as it is now, with any edits."
+  [{:keys [files current] :as ws} index]
+  (if (= index @current)
+    (or (current-text ws) (file-text (nth files index)))
+    (file-text (nth files index))))
+
+(defn replace-text!
+  "Replace everything in file `index` with `text` - e.g. code the page has
+  written - and load it."
+  [{:keys [files current view-ref] :as ws} index text]
+  (save! (nth files index) text)
+  (when (and (= index @current) @view-ref)
+    (editor/set-doc! @view-ref text))
+  (load-file! ws index text))
 
 ;; ---------------------------------------------------------------------------
 ;; The output log

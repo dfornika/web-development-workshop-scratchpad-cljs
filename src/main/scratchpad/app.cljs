@@ -3,6 +3,7 @@
   The page you'll mostly edit is src/main/scratchpad/playground.cljs."
   (:require [scratchpad.playground :as playground]
             [scratchpad.views.basics :as basics]
+            [scratchpad.views.data-explorer :as data-explorer]
             [scratchpad.state :refer [db]]
             [scratchpad.ui :as ui]
             [scratchpad.views.gallery :as gallery]
@@ -23,6 +24,7 @@
    {:id :session-3 :label "Session 3"}
    {:id :session-4 :label "Session 4"}
    {:id :playground :label "Playground"}
+   {:id :data-explorer :label "Data Explorer"}
    {:id :components :label "Components"}
    {:id :basics :label "CLJS Basics"}
    {:id :repl-guide :label "REPL Guide"}
@@ -66,6 +68,7 @@
           :session-4 [session/page 4 {:lesson [later-sessions/lesson 4]
                                       :homework [later-sessions/homework 4]}]
           :playground [playground/page]
+          :data-explorer [data-explorer/page]
           :components [gallery/page]
           :basics [basics/page]
           :repl-guide [repl-guide/page]
