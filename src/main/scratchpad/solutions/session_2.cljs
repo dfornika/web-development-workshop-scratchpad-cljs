@@ -7,7 +7,8 @@
 
   To try them at the REPL: load this file (Ctrl+Alt+C Enter), then evaluate
   the forms in the (comment ...) blocks."
-  (:require ["ag-grid-react" :refer [AgGridReact]]
+  (:require ["ag-grid-community" :refer [themeBalham]]
+            ["ag-grid-react" :refer [AgGridReact]]
             [reagent.core :as r]
             [scratchpad.components :as c]))
 
@@ -19,10 +20,37 @@
    {:sampleId "S005" :lineage "BA.2.86" :collectionDate "2026-06-12" :qcStatus "PASS" :percentQ30 95.6  :totalBases 1450000000}])
 
 
+(def grid-options
+  "Options for every AG Grid table in this file (the same as in the
+  homework file). Merge your own on top:
+
+      [:> AgGridReact (merge grid-options {:columnDefs columns :rowData rows})]"
+  {;; a compact look that fits more rows on screen
+   :theme themeBalham
+   ;; a checkbox on each row (and one at the top to tick them all), kept in
+   ;; view on the left when the table scrolls sideways
+   :rowSelection {:mode "multiRow"}
+   :selectionColumnDef {:pinned "left"}
+   ;; every cell can be edited - double-click one. (Edits change what the
+   ;; table shows, not your data.)
+   :defaultColDef {:editable true}
+   ;; the text in cells can be selected and copied
+   :enableCellTextSelection true
+   :ensureDomOrder true})
+
+(defn get-selected-rows
+  "The selected rows, from one of AG Grid's events - like the one it gives
+  :onSelectionChanged. AG Grid has them as JavaScript objects; js->clj
+  turns them back into maps."
+  [event]
+  (mapv #(js->clj % :keywordize-keys true)
+        (.getSelectedRows (.-api event))))
+
+
 ;; 1. Your First Grid ----------------------------------------------------------
 
 (def sample-columns
-  [{:headerName "Sample ID" :field "sampleId"}
+  [{:headerName "Sample ID" :field "sampleId" :pinned "left"}
    {:headerName "Lineage" :field "lineage"}
    {:headerName "Collection Date" :field "collectionDate"}
    {:headerName "QC Status" :field "qcStatus"}])
@@ -30,10 +58,11 @@
 (defn samples-grid
   "An AG Grid table of `samples`, a vector of maps like `example-samples`."
   [samples]
-  [:> AgGridReact {:columnDefs sample-columns
-                   :rowData samples
-                   ;; as tall as its rows, so it doesn't need a height
-                   :domLayout "autoHeight"}])
+  [:> AgGridReact (merge grid-options
+                         {:columnDefs sample-columns
+                          :rowData samples
+                          ;; as tall as its rows, so it doesn't need a height
+                          :domLayout "autoHeight"})])
 
 
 ;; 2. Color-coded QC Status ----------------------------------------------------
@@ -128,28 +157,30 @@
   [runs]
   [:div {:style {:height "220px"}}
    [:> AgGridReact
-    {:columnDefs [{:field "runId" :headerName "Run"}
-                  {:field "date" :headerName "Date"}]
-     :rowData runs
-     :getRowId (fn [params] (.. params -data -runId))
-     :rowSelection {:mode "singleRow" :checkboxes false :enableClickSelection true}
-     :onSelectionChanged (fn [event]
-                           (when-let [row (first (.getSelectedRows (.-api event)))]
-                             (select-run! (.-runId row))))}]])
+    (merge grid-options
+           {:columnDefs [{:field "runId" :headerName "Run" :pinned "left"}
+                         {:field "date" :headerName "Date"}]
+            :rowData runs
+            :getRowId (fn [params] (.. params -data -runId))
+            :rowSelection {:mode "singleRow" :enableClickSelection true}
+            :onSelectionChanged (fn [event]
+                                  (when-let [row (first (get-selected-rows event))]
+                                    (select-run! (:runId row))))})]])
 
 (defn libraries-table
   "The QC results of `libraries`."
   [libraries]
   [:div {:style {:height "220px"}}
    [:> AgGridReact
-    {:columnDefs [{:field "libraryId" :headerName "Library"}
-                  {:field "species" :headerName "Species"}
-                  {:field "percentQ30" :headerName "% Q30"
-                   :valueFormatter (fn [params] (format-percent (.-value params)))}
-                  {:field "depth" :headerName "Depth"}
-                  (qc-status-column)]
-     :rowData libraries
-     :getRowId (fn [params] (.. params -data -libraryId))}]])
+    (merge grid-options
+           {:columnDefs [{:field "libraryId" :headerName "Library" :pinned "left"}
+                         {:field "species" :headerName "Species"}
+                         {:field "percentQ30" :headerName "% Q30"
+                          :valueFormatter (fn [params] (format-percent (.-value params)))}
+                         {:field "depth" :headerName "Depth"}
+                         (qc-status-column)]
+            :rowData libraries
+            :getRowId (fn [params] (.. params -data -libraryId))})]])
 
 (defn qc-dashboard
   "The runs table on the left, and the QC results of the selected run on the right."

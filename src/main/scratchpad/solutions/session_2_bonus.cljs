@@ -2,7 +2,8 @@
   "Reference solutions for src/main/scratchpad/sessions/session_2_bonus.cljs.
 
   Just one way to do it - if yours works, it's right!"
-  (:require ["ag-grid-react" :refer [AgGridReact]]
+  (:require ["ag-grid-community" :refer [themeBalham]]
+            ["ag-grid-react" :refer [AgGridReact]]
             [reagent.core :as r]
             [scratchpad.components :as c]))
 
@@ -14,8 +15,26 @@
           :qcStatus (nth ["PASS" "PASS" "PASS" "WARN" "FAIL"] (mod (* i 7) 5))
           :percentQ30 (+ 70 (mod (* i 13) 29))})))
 
+(def grid-options
+  "Options for every AG Grid table in this file (the same as in the
+  homework file). Merge your own on top:
+
+      [:> AgGridReact (merge grid-options {:columnDefs columns :rowData rows})]"
+  {;; a compact look that fits more rows on screen
+   :theme themeBalham
+   ;; a checkbox on each row (and one at the top to tick them all), kept in
+   ;; view on the left when the table scrolls sideways
+   :rowSelection {:mode "multiRow"}
+   :selectionColumnDef {:pinned "left"}
+   ;; every cell can be edited - double-click one. (Edits change what the
+   ;; table shows, not your data.)
+   :defaultColDef {:editable true}
+   ;; the text in cells can be selected and copied
+   :enableCellTextSelection true
+   :ensureDomOrder true})
+
 (def sample-columns
-  [{:headerName "Sample ID" :field "sampleId"}
+  [{:headerName "Sample ID" :field "sampleId" :pinned "left"}
    {:headerName "Lineage" :field "lineage"}
    {:headerName "Collection Date" :field "collectionDate"}
    {:headerName "QC Status" :field "qcStatus"}
@@ -29,12 +48,13 @@
   [samples]
   [:div {:style {:height "420px"}}
    [:> AgGridReact
-    {:columnDefs sample-columns
-     :rowData samples
-     :defaultColDef {:filter true :sortable true}
-     :pagination true
-     :paginationPageSize 10
-     :paginationPageSizeSelector [10 20 50]}]])
+    (merge grid-options
+           {:columnDefs sample-columns
+            :rowData samples
+            :defaultColDef {:editable true :filter true :sortable true}
+            :pagination true
+            :paginationPageSize 10
+            :paginationPageSizeSelector [10 20 50]})]])
 
 
 ;; 2. Export to CSV ------------------------------------------------------------
@@ -49,9 +69,10 @@
       "Export CSV"]
      [:div {:style {:height "300px"}}
       [:> AgGridReact
-       {:columnDefs sample-columns
-        :rowData samples
-        :onGridReady (fn [event] (reset! grid-api (.-api event)))}]]]))
+       (merge grid-options
+              {:columnDefs sample-columns
+               :rowData samples
+               :onGridReady (fn [event] (reset! grid-api (.-api event)))})]]]))
 
 
 ;; 3. Tooltips -----------------------------------------------------------------
@@ -94,8 +115,11 @@
   []
   [:div {:style {:height "300px"}}
    [:> AgGridReact
-    {;; the Toggle button first, so it's always in view
-     :columnDefs (into [{:headerName "" :cellRenderer toggle-button :width 110}]
-                       sample-columns)
-     :rowData @samples-db
-     :getRowId (fn [params] (.. params -data -sampleId))}]])
+    (merge grid-options
+           {;; the Toggle button first, so it's always in view (and not
+            ;; editable: it's a button)
+            :columnDefs (into [{:headerName "" :cellRenderer toggle-button :width 110
+                                :pinned "left" :editable false}]
+                              sample-columns)
+            :rowData @samples-db
+            :getRowId (fn [params] (.. params -data -sampleId))})]])
