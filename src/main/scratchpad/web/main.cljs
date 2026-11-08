@@ -2,7 +2,8 @@
   "Entry point for the in-browser version of the site (the :web build).
   Same pages as the regular app, except the Playground and the session
   homework can be edited right on the page."
-  (:require ["ag-grid-community" :as ag-grid]
+  (:require ["ag-charts-community" :as ag-charts]
+            ["ag-grid-community" :as ag-grid]
             [reagent.dom.client :as rdomc]
             [scratchpad.app :as app]
             [scratchpad.state :refer [db reload-count]]
@@ -27,9 +28,10 @@
   (swap! db merge (app/route-from-url)))
 
 (defn ^:export init []
-  ;; AG Grid needs its features registered before any grid is drawn
-  ;; (scratchpad.main does the same for the Codespaces version)
+  ;; AG Grid and AG Charts need their features registered before any grid
+  ;; or chart is drawn (scratchpad.main does the same for Codespaces)
   (.registerModules ag-grid/ModuleRegistry #js [ag-grid/AllCommunityModule])
+  (.registerModules ag-charts/ModuleRegistry #js [ag-charts/AllCommunityModule])
   ;; lets pages (like Home) know they're in the in-browser version
   (swap! db assoc :edition :web)
   (sync-view-with-url!)

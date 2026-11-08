@@ -4,7 +4,9 @@
   examples on the Components page. Code evaluated here gets the *real*
   Reagent, component library and app state, so it behaves just like the
   compiled code in src/main."
-  (:require ["ag-grid-community" :as ag-grid-community]
+  (:require ["ag-charts-community" :as ag-charts-community]
+            ["ag-charts-react" :as ag-charts-react]
+            ["ag-grid-community" :as ag-grid-community]
             ["ag-grid-react" :as ag-grid-react]
             [reagent.core :as r]
             [sci.configs.reagent.reagent :as sci-reagent]
@@ -43,7 +45,9 @@
     :classes {'js js/globalThis :allow :all}
     ;; npm libraries code typed into the page can (:require [\"...\"]), just
     ;; like compiled code can
-    :js-libs {"ag-grid-community" ag-grid-community
+    :js-libs {"ag-charts-community" ag-charts-community
+              "ag-charts-react" ag-charts-react
+              "ag-grid-community" ag-grid-community
               "ag-grid-react" ag-grid-react}}))
 
 ;; Lets c/hiccup name the components typed into the page, like

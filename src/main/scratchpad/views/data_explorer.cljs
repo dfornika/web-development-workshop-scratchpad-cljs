@@ -12,10 +12,12 @@
        text into those types and shows them in a grid.
     4. The workspace (the same one the in-browser Playground uses) runs
        that code with SCI, and shows its `page` on the right."
-  (:require [clojure.string :as str]
+  (:require ["@codemirror/view" :refer [EditorView]]
+            [clojure.string :as str]
             [reagent.core :as r]
             [scratchpad.components :as c]
             [scratchpad.data :as data]
+            [scratchpad.ui :as ui]
             [scratchpad.web.sci :as sci]
             [scratchpad.web.workspace :as workspace]
             [shadow.resource :as rc]))
@@ -125,6 +127,167 @@
     (for [[code comment] pairs]
       (str code (apply str (repeat (- width (count code)) " ")) "  ; " comment))))
 
+;; ---------------------------------------------------------------------------
+;; Writing the code for a chart
+;; ---------------------------------------------------------------------------
+
+(def chart-types
+  "The charts the \"Make chart\" button can write. Each needs one or two
+  columns (:x, and maybe :y) of the kinds listed."
+  [{:id :count-bar :label "Bar: count of each value"
+    :x {:label "of" :kinds #{:category}}}
+   {:id :count-pie :label "Pie: share of each value"
+    :x {:label "of" :kinds #{:category}}}
+   {:id :histogram :label "Histogram: spread of a number"
+    :x {:label "of" :kinds #{:number}}}
+   {:id :average-bar :label "Bar: average per group"
+    :y {:label "average of" :kinds #{:number}}
+    :x {:label "for each" :kinds #{:category}}}
+   {:id :scatter :label "Scatter: number against number"
+    :x {:label "across" :kinds #{:number}}
+    :y {:label "up" :kinds #{:number}}}
+   {:id :over-time :label "Over time: daily average"
+    :y {:label "average of" :kinds #{:number}}
+    :x {:label "by" :kinds #{:date}}}])
+
+(def ^:private chart-start
+  (str ";; ===========================================================================\n"
+       ";; 4. The chart - written by the \"Make chart\" button above the table.\n"
+       ";;    Making another chart replaces this part, down to \"end of the chart\".\n"
+       ";; ===========================================================================\n"))
+
+(def ^:private chart-end
+  ";; ============================ end of the chart ============================\n")
+
+(defn- chart-component
+  "The code for a `chart` component drawing `options` (code for a map)."
+  [options]
+  (str "(defn chart []\n"
+       "  [:> AgCharts\n"
+       "   {:style {:height \"100%\"}\n"
+       "    :options " options "}])\n"))
+
+(defn- chart-body
+  "The code for one kind of chart. `x` and `y` are {:field \"sampleId\"
+  :label \"sample_id\"}."
+  [{:keys [id]} x y]
+  (let [xf (:field x) xl (:label x) yf (:field y) yl (:label y)]
+    (case id
+      (:count-bar :count-pie)
+      (str ";; How many rows have each " xl ", most common first:\n"
+           ";;   ({:" xf " \"...\" :count 12} ...)\n"
+           "(def chart-data\n"
+           "  (->> rows\n"
+           "       (map :" xf ")\n"
+           "       (frequencies)\n"
+           "       (map (fn [[value n]] {:" xf " (str value) :count n}))\n"
+           "       (sort-by :count >)))\n"
+           "\n"
+           (chart-component
+            (str "{:title {:text " (pr-str (str "Rows by " xl)) "}\n"
+                 "              :data chart-data\n"
+                 "              :series [" (if (= id :count-bar)
+                                             (str "{:type \"bar\" :xKey " (pr-str xf) " :xName " (pr-str xl)
+                                                  "\n                        :yKey \"count\" :yName \"Rows\"}")
+                                             (str "{:type \"pie\" :angleKey \"count\" :angleName \"Rows\""
+                                                  "\n                        :legendItemKey " (pr-str xf)
+                                                  "\n                        :calloutLabelKey " (pr-str xf) "}"))
+                 "]}")))
+
+      :histogram
+      (str ";; The rows that have a " xl ". AG Charts sorts them into bins itself.\n"
+           "(def chart-data\n"
+           "  (filterv (comp number? :" xf ") rows))\n"
+           "\n"
+           (chart-component
+            (str "{:title {:text " (pr-str (str "Spread of " xl)) "}\n"
+                 "              :data chart-data\n"
+                 "              :series [{:type \"histogram\" :xKey " (pr-str xf) " :xName " (pr-str xl) "}]}")))
+
+      :average-bar
+      (str ";; The average " yl " for each " xl ":\n"
+           ";;   ({:" xf " \"...\" :average 12.5} ...)\n"
+           "(def chart-data\n"
+           "  (->> rows\n"
+           "       (filter (comp number? :" yf "))\n"
+           "       (group-by :" xf ")\n"
+           "       (map (fn [[group group-rows]]\n"
+           "              {:" xf " (str group)\n"
+           "               :average (/ (reduce + (map :" yf " group-rows))\n"
+           "                           (count group-rows))}))\n"
+           "       (sort-by :" xf ")))\n"
+           "\n"
+           (chart-component
+            (str "{:title {:text " (pr-str (str "Average " yl " by " xl)) "}\n"
+                 "              :data chart-data\n"
+                 "              :series [{:type \"bar\" :xKey " (pr-str xf) " :xName " (pr-str xl)
+                 "\n                        :yKey \"average\" :yName " (pr-str (str "Average " yl)) "}]}")))
+
+      :scatter
+      (str ";; The rows that have both a " xl " and a " yl "\n"
+           "(def chart-data\n"
+           "  (filterv #(and (number? (:" xf " %)) (number? (:" yf " %))) rows))\n"
+           "\n"
+           (chart-component
+            (str "{:title {:text " (pr-str (str yl " against " xl)) "}\n"
+                 "              :data chart-data\n"
+                 "              :series [{:type \"scatter\" :xKey " (pr-str xf) " :xName " (pr-str xl)
+                 "\n                        :yKey " (pr-str yf) " :yName " (pr-str yl) "}]\n"
+                 "              :axes {:x {:type \"number\" :title {:text " (pr-str xl) "}}\n"
+                 "                     :y {:type \"number\" :title {:text " (pr-str yl) "}}}}")))
+
+      :over-time
+      (str ";; The average " yl " for each day of " xl ", in date order:\n"
+           ";;   ({:date #inst \"...\" :average 12.5} ...)\n"
+           ";; (subs ... 0 10) is the day part of the date, like \"2026-06-01\". A time\n"
+           ";; axis needs real dates, so js/Date. turns that text into one.\n"
+           "(def chart-data\n"
+           "  (->> rows\n"
+           "       (filter #(and (seq (:" xf " %)) (number? (:" yf " %))))\n"
+           "       (group-by #(subs (:" xf " %) 0 10))\n"
+           "       (sort-by first)\n"
+           "       (map (fn [[day day-rows]]\n"
+           "              {:date (js/Date. (str day \"T00:00\"))\n"
+           "               :average (/ (reduce + (map :" yf " day-rows))\n"
+           "                           (count day-rows))}))))\n"
+           "\n"
+           (chart-component
+            (str "{:title {:text " (pr-str (str "Average " yl " by " xl)) "}\n"
+                 "              :data chart-data\n"
+                 "              :series [{:type \"line\" :xKey \"date\" :xName " (pr-str xl)
+                 "\n                        :yKey \"average\" :yName " (pr-str (str "Average " yl)) "}]\n"
+                 "              :axes {:x {:type \"time\"} :y {:type \"number\"}}}"))))))
+
+(defn chart-section
+  "The code for the chart part of my_data.cljs: `chart-type` (one of
+  chart-types) of the columns `x` and `y`, or no chart if it's nil."
+  [chart-type x y]
+  (str chart-start
+       "\n"
+       (if chart-type
+         (str (chart-body chart-type x y)
+              "\n"
+              ";; Ideas: change \"bar\" to \"line\", add :fill \"#004a87\" to a series,\n"
+              ";; or look at chart-data at the REPL. More in AG Charts' documentation:\n"
+              ";; https://www.ag-grid.com/charts/react/quick-start/\n")
+         (str ";; No chart yet: choose one above the table and press \"Make chart\".\n"
+              "(def chart nil)\n"))
+       "\n"
+       chart-end))
+
+(defn- with-chart-section
+  "`code` with its chart part replaced by `section` (or, if it hasn't got
+  one, with `section` added before the (comment ...) block at the end)."
+  [code section]
+  (let [start (str/index-of code chart-start)
+        end (when start (str/index-of code chart-end start))]
+    (cond
+      end (str (subs code 0 start) section (subs code (+ end (count chart-end))))
+      (str/last-index-of code "\n(comment")
+      (let [i (inc (str/last-index-of code "\n(comment"))]
+        (str (subs code 0 i) section "\n" (subs code i)))
+      :else (str code "\n" section))))
+
 (defn generate-code
   "The code for my_data.cljs: a table of `dataset` (from scratchpad.data)."
   [{:keys [file-name headers rows] :as dataset}]
@@ -146,7 +309,8 @@
      "(ns scratchpad.my-data\n"
      "  \"A table of " file-name ", written by the Data Explorer.\n"
      "  Change anything you like, then press Ctrl+S to see the result.\"\n"
-     "  (:require [\"ag-grid-react\" :refer [AgGridReact]]\n"
+     "  (:require [\"ag-charts-react\" :refer [AgCharts]]\n"
+     "            [\"ag-grid-react\" :refer [AgGridReact]]\n"
      (when uses-str? "            [clojure.string :as str]\n")
      "            [reagent.core :as r]\n"
      "            [scratchpad.data :as data]))\n"
@@ -197,6 +361,9 @@
      "\n"
      ";; ---------------------------------------------------------------------------\n"
      ";; 3. The page\n"
+     ";;\n"
+     ";; The Data Explorer shows `page` on the right - and `chart` (part 4), if\n"
+     ";; there is one, above it.\n"
      ";; ---------------------------------------------------------------------------\n"
      "\n"
      ";; The rows you've ticked, as maps like the ones in `rows`. Tick some,\n"
@@ -231,8 +398,10 @@
      "   [:div {:style {:padding \"8px 12px\" :font-size \"14px\" :color \"#57606a\"}}\n"
      "    (count rows) \" rows from \" (data/file-name)\n"
      "    \" - \" (count @selected) \" selected\"]\n"
-     "   [:div {:style {:flex \"1 1 0\" :min-height \"300px\"}}\n"
+     "   [:div {:style {:flex \"1 1 0\" :min-height \"150px\"}}\n"
      "    [table]]])\n"
+     "\n"
+     (chart-section nil nil nil)
      "\n"
      "(comment\n"
      "  ;; Look at your data (Alt+Enter on each):\n"
@@ -380,23 +549,224 @@
          [c/callout {:kind kind :style {:font-size "14px" :padding "8px 12px"}} text])])))
 
 (defn- run-page
-  "Calls the generated code's `page`. Taking `_render-count` makes Reagent
-  re-run this whenever the preview is redrawn."
-  [page _render-count]
-  (page))
+  "Calls a component from the code (`page` or `chart`). Taking
+  `_render-count` makes Reagent re-run this whenever the preview is redrawn."
+  [component _render-count]
+  (component))
+
+;; ---------------------------------------------------------------------------
+;; Making a chart
+;; ---------------------------------------------------------------------------
+
+(defn- value-kind [v]
+  (cond
+    (number? v) :number
+    (boolean? v) :boolean
+    (and (string? v) (re-find #"^\d{4}-\d{2}-\d{2}" v)) :date
+    (string? v) :text))
+
+(defn- analyse-columns
+  "What each column of the code's `rows` holds, for the chart menus:
+  [{:field \"qcStatus\" :label \"qc_status\" :kinds #{:category}} ...].
+  Looks at the rows themselves, so it follows any changes made to
+  parse-row. :category means a column with some repeated values, and up
+  to 50 different ones."
+  [rows columns]
+  (let [fields (or (seq (for [{:keys [field headerName]} columns :when field]
+                          [field (or headerName field)]))
+                   (for [k (keys (first rows))] [(name k) (name k)]))]
+    (vec (for [[field label] fields
+               :let [k (keyword field)
+                     values (remove #(or (nil? %) (= "" %)) (map k rows))
+                     kinds (set (map value-kind values))
+                     kind (when (= 1 (count kinds)) (first kinds))]
+               :when kind]
+           {:field field
+            :label label
+            :kinds (cond-> #{}
+                     (= kind :number) (conj :number)
+                     (= kind :date) (conj :date)
+                     ;; up to 50 different values - but not all different,
+                     ;; like IDs, which would just be one bar each
+                     (and (#{:text :boolean :date} kind)
+                          (let [n (count (distinct values))]
+                            (and (<= n 50) (< n (count values)))))
+                     (conj :category))}))))
+
+;; Working that out takes a moment for big files, so it's only redone when
+;; the rows change.
+(defonce ^:private analysis (atom nil))
+
+(defn- columns-info [rows columns]
+  (let [[old-rows old-columns result] @analysis]
+    (if (and (identical? rows old-rows) (identical? columns old-columns))
+      result
+      (let [result (analyse-columns rows columns)]
+        (reset! analysis [rows columns result])
+        result))))
+
+(defn- candidates
+  "The columns that can go in `slot` (:x or :y) of `chart-type`."
+  [chart-type slot info]
+  (when-let [{:keys [kinds]} (get chart-type slot)]
+    (filter #(some kinds (:kinds %)) info)))
+
+(defn- slots [chart-type]
+  (if (#{:average-bar :over-time} (:id chart-type)) [:y :x] [:x :y]))
+
+(defonce ^:private choice (r/atom {:type :count-bar}))
+
+(defn- chosen
+  "The chosen chart type and columns - or the first that fit, for any
+  that haven't been chosen or don't fit."
+  [info]
+  (let [{:keys [type] :as picked} @choice
+        chart-type (some #(when (= type (:id %)) %) chart-types)
+        pick (fn [slot avoid]
+               (let [options (candidates chart-type slot info)]
+                 (or (some #(when (= (get picked slot) (:field %)) %) options)
+                     (first (remove #(= avoid (:field %)) options))
+                     (first options))))
+        x (pick :x nil)
+        y (when (:y chart-type) (pick :y (:field x)))]
+    {:chart-type chart-type :x x :y y
+     :ready? (and x (or y (not (:y chart-type))))}))
+
+(defn- show-chart-code!
+  "Scroll the editor to the chart part of the code."
+  []
+  (when-let [^js view @(:view-ref workspace)]
+    (when-let [i (str/index-of (.. view -state -doc toString) chart-start)]
+      (.dispatch view #js {:effects (.scrollIntoView EditorView i #js {:y "start"})}))))
+
+(defn- write-chart! [chart-type x y]
+  (let [code (workspace/current-file-text workspace 0)]
+    (workspace/replace-text! workspace 0 (with-chart-section code (chart-section chart-type x y)))
+    (show-chart-code!)))
+
+(def ^:private select-style
+  {:padding "3px 4px" :font-size "13px" :max-width "220px"
+   :border "1px solid #d0d7de" :border-radius "4px" :background-color "white"})
+
+(defn- column-select [slot {:keys [chart-type] :as current} info]
+  (let [options (candidates chart-type slot info)]
+    [:<>
+     [:span (get-in chart-type [slot :label])]
+     [:select {:value (or (get-in current [slot :field]) "")
+               :style select-style
+               :on-change #(swap! choice assoc slot (.. % -target -value))}
+      (for [{:keys [field label]} options]
+        ^{:key field} [:option {:value field} label])]]))
+
+(defn- chart-builder [rows columns has-chart?]
+  (let [info (columns-info rows columns)
+        {:keys [chart-type x y ready?] :as current} (chosen info)]
+    [:div {:style {:display "flex" :flex-wrap "wrap" :align-items "center" :gap "6px"
+                   :padding "6px 8px" :font-size "13px" :color "#57606a"
+                   :border-bottom "1px solid #d0d7de" :background-color "#f6f8fa"}}
+     [:span "📊"]
+     [:select {:value (name (:id chart-type))
+               :style select-style
+               :on-change #(reset! choice {:type (keyword (.. % -target -value))})}
+      (for [{:keys [id label] :as t} chart-types
+            :let [possible? (every? #(seq (candidates t % info)) (keys (select-keys t [:x :y])))]]
+        ^{:key id}
+        [:option {:value (name id) :disabled (not possible?)}
+         (str label (when-not possible? " (no suitable columns)"))])]
+     (for [slot (slots chart-type) :when (get chart-type slot)]
+       ^{:key slot} [column-select slot current info])
+     [c/button {:style {:padding "3px 10px" :font-size "13px"}
+                :disabled? (not ready?)
+                :on-click #(write-chart! chart-type x y)}
+      (if has-chart? "Replace chart" "Make chart")]
+     (when has-chart?
+       [c/button {:variant :secondary
+                  :style {:padding "3px 10px" :font-size "13px"}
+                  :on-click #(write-chart! nil nil nil)}
+        "Remove chart"])]))
+
+;; ---------------------------------------------------------------------------
+;; The chart above the table, with a divider between them
+;; ---------------------------------------------------------------------------
+
+(def ^:private split-key "scratchpad/data-explorer-chart-split")
+
+(defn- clamp-split [percent] (max 15 (min 85 percent)))
+
+(defonce ^:private chart-split
+  (r/atom (try
+            (let [v (js/parseFloat (.getItem js/localStorage split-key))]
+              (if (js/isNaN v) 45 (clamp-split v)))
+            (catch :default _ 45))))
+
+(defn- fill
+  "Makes `child` exactly fill a pane, so things inside it sized at 100%
+  (like the grid and the chart) know how big to be."
+  [style child]
+  [:div {:style (merge {:position "relative" :min-height 0} style)}
+   [:div {:style {:position "absolute" :inset 0 :overflow "auto"}}
+    child]])
+
+(defn- horizontal-divider
+  "Drag to share the height between the chart and the table; double-click
+  to reset."
+  [container-ref]
+  (r/with-let [dragging? (r/atom false)]
+    [:div {:class "playground-divider"
+           :title "Drag to resize. Double-click to reset."
+           :style {:flex "0 0 12px" :cursor "row-resize" :display "flex"
+                   :align-items "center" :touch-action "none"}
+           :on-pointer-down (fn [^js e]
+                              (.preventDefault e)
+                              (.setPointerCapture (.-currentTarget e) (.-pointerId e))
+                              (reset! dragging? true))
+           :on-pointer-move (fn [^js e]
+                              (when-let [^js el (and @dragging? @container-ref)]
+                                (let [rect (.getBoundingClientRect el)]
+                                  (reset! chart-split
+                                          (clamp-split (* 100 (/ (- (.-clientY e) (.-top rect))
+                                                                 (.-height rect))))))))
+           :on-pointer-up (fn [_]
+                            (reset! dragging? false)
+                            (try (.setItem js/localStorage split-key (str @chart-split))
+                                 (catch :default _ nil)))
+           :on-lost-pointer-capture (fn [_] (reset! dragging? false))
+           :on-double-click (fn [_] (reset! chart-split 45))}
+     [:div {:class "playground-divider-line"
+            :style {:height "3px" :width "100%" :border-radius "2px"
+                    :background-color (if @dragging? "#54aeff" "#d0d7de")}}]]))
+
+(defn- chart-and-table [chart table]
+  (r/with-let [container-ref (atom nil)]
+    (if chart
+      [:div {:ref #(reset! container-ref %)
+             :style {:flex "1 1 0" :min-height 0 :display "flex" :flex-direction "column"}}
+       [fill {:flex (str "0 0 calc(" @chart-split "% - 6px)") :padding "8px 8px 0"} chart]
+       [horizontal-divider container-ref]
+       [fill {:flex "1 1 0"} table]]
+      [fill {:flex "1 1 0"} table])))
 
 (defn- preview []
   (let [n @sci/render-count
-        page (sci/resolve-var 'scratchpad.my-data/page)]
-    (if (fn? page)
-      ;; A fresh table each time the code is loaded: AG Grid only applies
-      ;; some options (like :autoSizeStrategy) when a grid is first made.
-      ^{:key n} [run-page page n]
-      [:div {:style {:padding "12px"}}
-       [c/callout {:kind :warning}
-        "Nothing to show yet: the code needs a " [:code "page"] " function in the "
-        [:code "scratchpad.my-data"] " namespace. Press Ctrl+S to load it, or "
-        "\"Reset to original\" to start again."]])))
+        page (sci/resolve-var 'scratchpad.my-data/page)
+        chart (sci/resolve-var 'scratchpad.my-data/chart)
+        rows (sci/resolve-var 'scratchpad.my-data/rows)
+        columns (sci/resolve-var 'scratchpad.my-data/columns)]
+    [:div {:style {:height "100%" :display "flex" :flex-direction "column"}}
+     (when (sequential? rows)
+       [chart-builder rows (when (sequential? columns) columns) (fn? chart)])
+     [chart-and-table
+      ;; Fresh ones each time the code is loaded (keyed by n): AG Grid and
+      ;; AG Charts only apply some options when they're first made.
+      (when (fn? chart)
+        ^{:key n} [ui/error-boundary [run-page chart n]])
+      (if (fn? page)
+        ^{:key n} [run-page page n]
+        [:div {:style {:padding "12px"}}
+         [c/callout {:kind :warning}
+          "Nothing to show yet: the code needs a " [:code "page"] " function in the "
+          [:code "scratchpad.my-data"] " namespace. Press Ctrl+S to load it, or "
+          "\"Reset to original\" to start again."]])]]))
 
 (defn- explorer []
   (r/with-let [dragging? (r/atom false)]
@@ -411,7 +781,7 @@
                       (reset! dragging? false)
                       (open-file! (aget (.. e -dataTransfer -files) 0)))
            :style {:position "relative"}}
-     [workspace/view workspace {:help [toolbar] :preview-label "Your table"}
+     [workspace/view workspace {:help [toolbar] :preview-label "Your table and chart"}
       [preview]]
      (when @dragging?
        [:div {:style {:position "absolute"
