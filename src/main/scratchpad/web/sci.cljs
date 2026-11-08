@@ -37,6 +37,26 @@
     :js-libs {"ag-grid-community" ag-grid-community
               "ag-grid-react" ag-grid-react}}))
 
+;; Lets c/hiccup name the components typed into the page, like
+;; gene-viewer: it looks for the function among the vars in SCI's
+;; namespaces. (Compiled functions here are minified, so they don't know
+;; their own names.) It runs through eval-form, since SCI only knows its
+;; namespaces while it's evaluating something.
+(def ^:private find-name-form
+  '(fn [f]
+     (some (fn [ns]
+             (some (fn [[sym v]]
+                     (when (try (identical? @v f) (catch :default _ false))
+                       sym))
+                   (ns-publics ns)))
+           (all-ns))))
+
+(set! scratchpad.components/*find-name*
+      (fn [f]
+        (try
+          (sci/eval-form ctx (list find-name-form (list 'quote f)))
+          (catch :default _ nil))))
+
 (defn- format-value [v]
   (binding [*print-length* 50
             *print-level* 6]

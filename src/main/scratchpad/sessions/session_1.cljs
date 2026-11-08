@@ -44,6 +44,11 @@
 
   ;; Your component is just a function that returns data - try calling it:
   (gene-viewer example-gene)
+  ;; Components inside it (like c/card) show up as #object[...] - c/hiccup
+  ;; shows their names instead, and c/expand turns them into plain HTML
+  ;; elements, the way Reagent does when it draws the page:
+  (c/hiccup (gene-viewer example-gene))
+  (c/expand (gene-viewer example-gene))
   )
 
 
