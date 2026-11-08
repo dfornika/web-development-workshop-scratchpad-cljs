@@ -12,7 +12,8 @@
     \"Calva: Load/Evaluate Current File and its Requires/Dependencies\"
     (shortcut: Ctrl+Alt+C Enter)
   Then evaluate forms in the (comment ...) blocks with Alt+Enter."
-  (:require ["ag-grid-react" :refer [AgGridReact]]
+  (:require ["ag-grid-community" :refer [themeBalham]]
+            ["ag-grid-react" :refer [AgGridReact]]
             [cljs.pprint :as pp]
             [reagent.core :as r]
             [scratchpad.components :as c]))
@@ -34,6 +35,36 @@
 
 
 ;; ===========================================================================
+;; Settings for every table
+;; ===========================================================================
+
+(def grid-options
+  "Options for every AG Grid table in this file. Merge your own on top:
+
+      [:> AgGridReact (merge grid-options {:columnDefs columns :rowData rows})]"
+  {;; a compact look that fits more rows on screen
+   :theme themeBalham
+   ;; a checkbox on each row (and one at the top to tick them all), kept in
+   ;; view on the left when the table scrolls sideways
+   :rowSelection {:mode "multiRow"}
+   :selectionColumnDef {:pinned "left"}
+   ;; every cell can be edited - double-click one. (Edits change what the
+   ;; table shows, not your data.)
+   :defaultColDef {:editable true}
+   ;; the text in cells can be selected and copied
+   :enableCellTextSelection true
+   :ensureDomOrder true})
+
+(defn get-selected-rows
+  "The selected rows, from one of AG Grid's events - like the one it gives
+  :onSelectionChanged. AG Grid has them as JavaScript objects; js->clj
+  turns them back into maps."
+  [event]
+  (mapv #(js->clj % :keywordize-keys true)
+        (.getSelectedRows (.-api event))))
+
+
+;; ===========================================================================
 ;; 1. Your First Grid
 ;;
 ;; Show `samples` in an AG Grid table, with a column for the sample ID,
@@ -45,8 +76,11 @@
   [samples]
   ;; TODO: replace this with an AG Grid table. You'll need:
   ;;   - columns: a vector of maps like {:headerName "Sample ID" :field "sampleId"}
-  ;;   - [:> AgGridReact {:columnDefs columns :rowData samples}]
-  ;;     (:> is how Reagent uses a React component, like AgGridReact)
+  ;;     (add :pinned "left" to the first one, to keep it in view when the
+  ;;     table scrolls sideways)
+  ;;   - [:> AgGridReact (merge grid-options {:columnDefs columns :rowData samples})]
+  ;;     (:> is how Reagent uses a React component, like AgGridReact, and
+  ;;     grid-options - above - has the settings we use for every table)
   ;;   - a box with a height around it, e.g. [:div {:style {:height "250px"}} ...]
   ;;     or :domLayout "autoHeight" to make the table as tall as its rows
   [c/todo "samples-grid"])
@@ -58,6 +92,10 @@
 
   ;; Column definitions are plain data - build them however you like:
   (for [k [:sampleId :lineage]] {:field (name k)})
+
+  ;; Grid options are plain data too - merge adds yours to grid-options:
+  grid-options
+  (merge grid-options {:rowData example-samples})
   )
 
 
@@ -208,17 +246,19 @@
   [runs]
   [:div {:style {:height "220px"}}
    [:> AgGridReact
-    {:columnDefs [{:field "runId" :headerName "Run"}
-                  {:field "date" :headerName "Date"}]
-     :rowData runs
-     ;; lets AG Grid recognize each row, so it keeps the selection when
-     ;; the page redraws
-     :getRowId (fn [params] (.. params -data -runId))
-     :rowSelection {:mode "singleRow" :checkboxes false :enableClickSelection true}
-     ;; TODO: when the selection changes, call select-run! with the selected
-     ;; run's ID. The selected rows are (.getSelectedRows (.-api event)) -
-     ;; a JavaScript array of JavaScript objects.
-     :onSelectionChanged (fn [event] nil)}]])
+    (merge grid-options
+           {:columnDefs [{:field "runId" :headerName "Run" :pinned "left"}
+                         {:field "date" :headerName "Date"}]
+            :rowData runs
+            ;; lets AG Grid recognize each row, so it keeps the selection
+            ;; when the page redraws
+            :getRowId (fn [params] (.. params -data -runId))
+            ;; one run at a time - tick it, or click anywhere on its row
+            :rowSelection {:mode "singleRow" :enableClickSelection true}
+            ;; TODO: when the selection changes, call select-run! with the
+            ;; selected run's ID. (get-selected-rows event) gives the
+            ;; selected rows, as maps.
+            :onSelectionChanged (fn [event] nil)})]])
 
 (defn qc-dashboard
   "The runs table on the left, and the QC results of the selected run on the right."
@@ -227,6 +267,7 @@
   ;; libraries side by side - e.g. a [:div] with
   ;;   {:style {:display "grid" :grid-template-columns "1fr 2fr" :gap "16px"}}
   ;; Read what you need from @db. (You've written most of the pieces!)
+  ;; Use grid-options for the libraries table too.
   (let [{:keys [runs]} @db]
     [runs-table runs]))
 
