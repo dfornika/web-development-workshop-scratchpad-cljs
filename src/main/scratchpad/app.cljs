@@ -2,6 +2,7 @@
   "The top level of the site: the nav bar plus whichever page is selected.
   The page you'll mostly edit is src/main/scratchpad/playground.cljs."
   (:require [scratchpad.playground :as playground]
+            [scratchpad.views.basics :as basics]
             [scratchpad.state :refer [db]]
             [scratchpad.ui :as ui]
             [scratchpad.views.gallery :as gallery]
@@ -23,6 +24,7 @@
    {:id :session-4 :label "Session 4"}
    {:id :playground :label "Playground"}
    {:id :components :label "Components"}
+   {:id :basics :label "CLJS Basics"}
    {:id :repl-guide :label "REPL Guide"}
    {:id :js-interop :label "JS Interop"}])
 
@@ -65,5 +67,6 @@
                                       :homework [later-sessions/homework 4]}]
           :playground [playground/page]
           :components [gallery/page]
+          :basics [basics/page]
           :repl-guide [repl-guide/page]
           :js-interop [js-interop/page]))]])))
