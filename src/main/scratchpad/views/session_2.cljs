@@ -2,7 +2,8 @@
   "The Session 2 Homework page. It shows the live results of the functions in
   src/main/scratchpad/sessions/session_2.cljs and session_2_bonus.cljs -
   edit those files, not this one."
-  (:require ["ag-grid-react" :refer [AgGridReact]]
+  (:require ["ag-grid-community" :refer [themeBalham]]
+            ["ag-grid-react" :refer [AgGridReact]]
             [scratchpad.components :as c]
             [scratchpad.sessions.session-2 :as s2]
             [scratchpad.sessions.session-2-bonus :as bonus]
@@ -49,13 +50,29 @@
 ;; Grids the page builds around the pieces you write
 ;; ---------------------------------------------------------------------------
 
-(defn- grid [columns rows]
-  [:div {:style {:height "250px"}}
-   ;; A fresh grid whenever the columns change: AG Grid applies some column
-   ;; options (like tooltips) only when it first draws a column, so without
-   ;; this, edits to those wouldn't show up until the page was reloaded.
-   ^{:key (pr-str columns)}
-   [:> AgGridReact {:columnDefs columns :rowData rows}]])
+(defn- grid
+  "A table like the ones in the homework files (see grid-options there):
+  the first column pinned on the left, and every cell editable - except
+  ones with a cell renderer, like a button."
+  [columns rows]
+  (let [columns (vec (map-indexed (fn [i column]
+                                    (cond-> column
+                                      (zero? i) (assoc :pinned "left")
+                                      (:cellRenderer column) (assoc :editable false)))
+                                  columns))]
+    [:div {:style {:height "250px"}}
+     ;; A fresh grid whenever the columns change: AG Grid applies some column
+     ;; options (like tooltips) only when it first draws a column, so without
+     ;; this, edits to those wouldn't show up until the page was reloaded.
+     ^{:key (pr-str columns)}
+     [:> AgGridReact {:columnDefs columns
+                      :rowData rows
+                      :theme themeBalham
+                      :rowSelection {:mode "multiRow"}
+                      :selectionColumnDef {:pinned "left"}
+                      :defaultColDef {:editable true}
+                      :enableCellTextSelection true
+                      :ensureDomOrder true}]]))
 
 (defn- status-grid
   "Exercise 2: a grid using your qc-status-column."

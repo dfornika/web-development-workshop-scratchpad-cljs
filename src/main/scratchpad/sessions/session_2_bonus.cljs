@@ -8,7 +8,8 @@
 
   The AG Grid documentation lists every option:
   https://www.ag-grid.com/react-data-grid/"
-  (:require ["ag-grid-react" :refer [AgGridReact]]
+  (:require ["ag-grid-community" :refer [themeBalham]]
+            ["ag-grid-react" :refer [AgGridReact]]
             [cljs.pprint :as pp]
             [reagent.core :as r]
             [scratchpad.components :as c]))
@@ -21,8 +22,26 @@
           :qcStatus (nth ["PASS" "PASS" "PASS" "WARN" "FAIL"] (mod (* i 7) 5))
           :percentQ30 (+ 70 (mod (* i 13) 29))})))
 
+(def grid-options
+  "Options for every AG Grid table in this file (the same as in
+  session_2.cljs). Merge your own on top:
+
+      [:> AgGridReact (merge grid-options {:columnDefs columns :rowData rows})]"
+  {;; a compact look that fits more rows on screen
+   :theme themeBalham
+   ;; a checkbox on each row (and one at the top to tick them all), kept in
+   ;; view on the left when the table scrolls sideways
+   :rowSelection {:mode "multiRow"}
+   :selectionColumnDef {:pinned "left"}
+   ;; every cell can be edited - double-click one. (Edits change what the
+   ;; table shows, not your data.)
+   :defaultColDef {:editable true}
+   ;; the text in cells can be selected and copied
+   :enableCellTextSelection true
+   :ensureDomOrder true})
+
 (def sample-columns
-  [{:headerName "Sample ID" :field "sampleId"}
+  [{:headerName "Sample ID" :field "sampleId" :pinned "left"}
    {:headerName "Lineage" :field "lineage"}
    {:headerName "Collection Date" :field "collectionDate"}
    {:headerName "QC Status" :field "qcStatus"}
@@ -41,14 +60,17 @@
   [samples]
   [:div {:style {:height "420px"}}
    [:> AgGridReact
-    {:columnDefs sample-columns
-     :rowData samples
-     ;; TODO: add these grid options (see the AG Grid docs for more):
-     ;;   :defaultColDef {:filter true :sortable true}  - applies to every column
-     ;;   :pagination true
-     ;;   :paginationPageSize 10
-     ;;   :paginationPageSizeSelector [10 20 50]
-     }]])
+    (merge grid-options
+           {:columnDefs sample-columns
+            :rowData samples
+            ;; TODO: add these grid options (see the AG Grid docs for more):
+            ;;   :defaultColDef {:editable true :filter true :sortable true}
+            ;;       - applies to every column. (It replaces grid-options'
+            ;;         :defaultColDef, so keep :editable true in it.)
+            ;;   :pagination true
+            ;;   :paginationPageSize 10
+            ;;   :paginationPageSizeSelector [10 20 50]
+            })]])
 
 (comment
   (count example-samples)
@@ -74,10 +96,11 @@
      ;;   (.exportDataAsCsv @grid-api)
      [:div {:style {:height "300px"}}
       [:> AgGridReact
-       {:columnDefs sample-columns
-        :rowData samples
-        ;; AG Grid calls this when it's ready, with an event holding its API
-        :onGridReady (fn [event] (reset! grid-api (.-api event)))}]]]))
+       (merge grid-options
+              {:columnDefs sample-columns
+               :rowData samples
+               ;; AG Grid calls this when it's ready, with an event holding its API
+               :onGridReady (fn [event] (reset! grid-api (.-api event)))})]]]))
 
 (comment
   ;; The API can do lots of things - look at the AG Grid docs for "Grid API".
@@ -144,12 +167,15 @@
   []
   [:div {:style {:height "300px"}}
    [:> AgGridReact
-    {;; the Toggle button first, so it's always in view
-     :columnDefs (into [{:headerName "" :cellRenderer toggle-button :width 110}]
-                       sample-columns)
-     :rowData @samples-db
-     ;; keeps each row's identity when samples-db changes
-     :getRowId (fn [params] (.. params -data -sampleId))}]])
+    (merge grid-options
+           {;; the Toggle button first, so it's always in view (and not
+            ;; editable: it's a button)
+            :columnDefs (into [{:headerName "" :cellRenderer toggle-button :width 110
+                                :pinned "left" :editable false}]
+                              sample-columns)
+            :rowData @samples-db
+            ;; keeps each row's identity when samples-db changes
+            :getRowId (fn [params] (.. params -data -sampleId))})]])
 
 (comment
   @samples-db
