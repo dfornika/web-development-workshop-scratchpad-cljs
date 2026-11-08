@@ -24,6 +24,12 @@
 
       (c/print-html [c/card {:id \"intro\" :title \"Hello\"} \"Some text\"])
 
+  And to read the hiccup a component returns - with components shown by
+  name rather than as #object[...] - use `c/hiccup`, or `c/expand` to turn
+  them all into plain HTML elements:
+
+      (c/hiccup (my-component))
+
   To use them in your own file, add this to your `ns` form:
 
       (:require [scratchpad.components :as c])"
@@ -560,3 +566,80 @@
    [:textarea {:style {:font-family "monospace"}
                :read-only true
                :value (str (:config @db))}]])
+
+
+;; ---------------------------------------------------------------------------
+;; Looking at hiccup at the REPL
+;;
+;; Calling a component at the REPL, like (gene-viewer example-gene), gives
+;; back hiccup - but the components inside it print as unreadable functions:
+;;   [#object[scratchpad$components$card] {:title "KPC-3"} ...]
+;; These two functions turn that into something you can read.
+;; (They're at the end of the file because `component-names` lists every
+;; component defined above it.)
+;; ---------------------------------------------------------------------------
+
+(def ^:private component-names
+  ;; function -> its name, like c/card, for every component in this file.
+  ;; Built when the file is compiled, so it works even in the minified
+  ;; in-browser version, where functions lose their names.
+  (into {}
+        (for [[sym v] (ns-publics 'scratchpad.components)]
+          [@v (symbol "c" (name sym))])))
+
+(def ^:dynamic *find-name*
+  "How to find the name of a function that isn't one of these components,
+  for code that's typed into the page and run by SCI (the in-browser
+  version, and the Components page's examples). Set by scratchpad.web.sci."
+  nil)
+
+(defn- function-name [f]
+  (or (get component-names f)
+      (when *find-name* (*find-name* f))
+      ;; compiled functions (in Codespaces) are named like
+      ;; scratchpad$sessions$session_1$gene_viewer
+      (let [compiled-name (.-name f)]
+        (when (str/starts-with? compiled-name "scratchpad$")
+          (symbol (demunge (last (str/split compiled-name #"\$"))))))))
+
+(defn hiccup
+  "Shows some hiccup with each component's name in place of its function,
+  so you can read it at the REPL:
+
+      (c/hiccup (gene-viewer example-gene))
+      ;; => [c/card {:title \"KPC-3\"} [:div [c/label-value \"Start\" 21331] ...]]
+
+  It doesn't call any of the components - see `expand` for that."
+  [x]
+  (cond
+    (vector? x) (let [[tag & args] x]
+                  (into [(or (when (fn? tag) (function-name tag)) tag)]
+                        (map hiccup)
+                        args))
+    (seq? x) (apply list (map hiccup x))
+    :else x))
+
+(defn- react-class? [f]
+  (some-> (.-prototype f) .-isReactComponent boolean))
+
+(defn expand
+  "Turns hiccup with components in it into plain hiccup - just HTML
+  elements - by calling each component, the way Reagent does when it
+  draws the page:
+
+      (c/expand [c/label-value \"Start\" 21331])
+      ;; => [:div {:data-component \"label-value\" ...} [:span ...] ...]
+
+  Good for seeing exactly what a component turns into. (`print-html` goes
+  one step further, to the HTML itself.)"
+  [x]
+  (cond
+    (vector? x) (let [[tag & args] x]
+                  (if (and (fn? tag) (not (react-class? tag)))
+                    (let [result (apply tag args)]
+                      ;; a component that returns a function (a \"form-2\"
+                      ;; component) draws by calling that function
+                      (expand (if (fn? result) (apply result args) result)))
+                    (into [tag] (map expand) args)))
+    (seq? x) (apply list (map expand x))
+    :else x))

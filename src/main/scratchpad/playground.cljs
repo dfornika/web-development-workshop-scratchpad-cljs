@@ -112,6 +112,10 @@
   ;; Hiccup is just data: evaluate a component and look at what it returns
   (welcome-banner "Hi" "There")
   (c/header {:title "Lab Website"})
+  ;; Components inside the result show up as #object[...]. c/hiccup shows
+  ;; their names, and c/expand turns them into plain HTML elements:
+  (c/hiccup (welcome-banner "Hi" "There"))
+  (c/expand [c/header {:title "Lab Website"}])
 
   ;; ...and see the HTML it turns into. print-html shows it in Calva's REPL
   ;; output window; html returns it as a string.
