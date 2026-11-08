@@ -30,6 +30,7 @@ A ready-to-go ClojureScript ([shadow-cljs](https://github.com/thheller/shadow-cl
 | **CLJS Basics** | A beginner-friendly tour of ClojureScript and its everyday idioms, with live examples | |
 | **REPL Guide** | How REPL-driven development works, habits, troubleshooting, and practice drills | `src/main/scratchpad/repl_practice.cljs` |
 | **JS Interop** | Using JavaScript (browser built-ins and npm libraries) from ClojureScript, with a cheat sheet and live examples | |
+| **Fetching Data** | Loading JSON from a `data/` directory with cljs-http and core.async, into the app state - with live examples | `resources/public/data/` (the files) |
 
 ## Live coding cheat sheet
 

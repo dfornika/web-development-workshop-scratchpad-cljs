@@ -1,0 +1,110 @@
+[
+  {
+    "sample_id": "S025",
+    "collection_date": "2026-06-11",
+    "lineage": "KP.3.1.1",
+    "total_reads": 2259924,
+    "percent_q30": 89.7,
+    "mean_depth": 9526.9,
+    "qc_status": "WARN"
+  },
+  {
+    "sample_id": "S026",
+    "collection_date": "2026-06-13",
+    "lineage": "XEC",
+    "total_reads": 2221130,
+    "percent_q30": 97.4,
+    "mean_depth": 6614.3,
+    "qc_status": "PASS"
+  },
+  {
+    "sample_id": "S027",
+    "collection_date": "2026-06-13",
+    "lineage": "LP.8.1",
+    "total_reads": 1721658,
+    "percent_q30": 87.2,
+    "mean_depth": 4855.7,
+    "qc_status": "WARN"
+  },
+  {
+    "sample_id": "S028",
+    "collection_date": "2026-06-13",
+    "lineage": "JN.1",
+    "total_reads": 1760843,
+    "percent_q30": 85.8,
+    "mean_depth": 6076.7,
+    "qc_status": "FAIL"
+  },
+  {
+    "sample_id": "S029",
+    "collection_date": "2026-06-10",
+    "lineage": "KP.3.1.1",
+    "total_reads": 227423,
+    "percent_q30": 87.0,
+    "mean_depth": 600.4,
+    "qc_status": "FAIL"
+  },
+  {
+    "sample_id": "S030",
+    "collection_date": "2026-06-10",
+    "lineage": "KP.3.1.1",
+    "total_reads": 568677,
+    "percent_q30": 84.5,
+    "mean_depth": 2125.6,
+    "qc_status": "FAIL"
+  },
+  {
+    "sample_id": "S031",
+    "collection_date": "2026-06-15",
+    "lineage": "LP.8.1",
+    "total_reads": 973619,
+    "percent_q30": 93.6,
+    "mean_depth": 2549.0,
+    "qc_status": "PASS"
+  },
+  {
+    "sample_id": "S032",
+    "collection_date": "2026-06-08",
+    "lineage": "LP.8.1",
+    "total_reads": 1364339,
+    "percent_q30": 95.6,
+    "mean_depth": 4382.8,
+    "qc_status": "PASS"
+  },
+  {
+    "sample_id": "S033",
+    "collection_date": "2026-06-11",
+    "lineage": "LP.8.1",
+    "total_reads": 2178076,
+    "percent_q30": 95.9,
+    "mean_depth": 5550.4,
+    "qc_status": "PASS"
+  },
+  {
+    "sample_id": "S034",
+    "collection_date": "2026-06-12",
+    "lineage": "LP.8.1",
+    "total_reads": 383808,
+    "percent_q30": 91.5,
+    "mean_depth": 1844.2,
+    "qc_status": "PASS"
+  },
+  {
+    "sample_id": "S035",
+    "collection_date": "2026-06-14",
+    "lineage": "KP.2",
+    "total_reads": 1862456,
+    "percent_q30": 96.9,
+    "mean_depth": 5189.1,
+    "qc_status": "PASS"
+  },
+  {
+    "sample_id": "S036",
+    "collection_date": "2026-06-08",
+    "lineage": "KP.3.1.1",
+    "total_reads": 1899361,
+    "percent_q30": 85.5,
+    "mean_depth": 6711.8,
+    "qc_status": "FAIL"
+  }
+]

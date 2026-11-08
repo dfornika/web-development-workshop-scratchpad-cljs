@@ -62,6 +62,9 @@ jobs:
         run: |
           mkdir -p site
           cp dist/scratchpad.html site/index.html
+          # the files the Fetching Data page (and config.json) fetch
+          cp -r resources/public/data site/data
+          cp resources/public/config.json site/
 
       - name: Attach the single HTML file to this run
         uses: actions/upload-artifact@v7
