@@ -587,6 +587,19 @@
   [x]
   (str/trimr (with-out-str (pp/pprint x))))
 
+(defn tap->
+  "Sends `x` to the tap panel, like (tap> x), and returns `x` - so you can
+  look at what's going through the middle of a -> or ->> pipeline without
+  changing what it does:
+
+      (->> samples
+           (filter :passed)
+           c/tap->              ; see which ones passed
+           (map :reads))"
+  [x]
+  (tap> x)
+  x)
+
 (defn table-str
   "What (pp/print-table rows) would print, as a string: a list of maps as a
   text table. `ks` (optional) picks the columns, in order.

@@ -139,6 +139,11 @@
   ;; tap> sends a value to the tap panel (the "tap>" button at the bottom
   ;; right of the page), where you can unfold nested data
   (tap> {:run "RUN_001" :samples samples})
+  ;; c/tap-> taps a value and passes it on, for the middle of a pipeline
+  (->> samples
+       (filter #(= "pass" (:qc %)))
+       c/tap->
+       (map :reads))
 
   ;; Components need saving to show up on the page. If you've re-defined one
   ;; at the REPL instead, this redraws the page:

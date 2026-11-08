@@ -16,7 +16,8 @@
             [scratchpad.components]
             [scratchpad.data :as data]
             [scratchpad.web.sci-async :as sci-async]
-            [scratchpad.state :as state]))
+            [scratchpad.state :as state]
+            [scratchpad.views.taps :as taps]))
 
 ;; Bumping this redraws the preview. Code in the editor can do that by
 ;; calling (scratchpad.main/render), same as in Codespaces.
@@ -94,6 +95,14 @@
                     (constantly (fn [s]
                                   (let [s (str/replace s #"\n$" "")]
                                     (when-not (str/blank? s) (js/console.log s))))))
+
+;; Tells the tap panel which namespace a value was tapped from: the one
+;; SCI is running code in. (Outside of running code - like in a button's
+;; on-click - that's just the default, user, which says nothing useful.)
+(set! taps/current-sci-ns
+      (fn []
+        (let [n (str (sci/ns-name @sci/ns))]
+          (when-not (= n "user") n))))
 
 ;; Lets c/hiccup name the components typed into the page, like
 ;; gene-viewer: it looks for the function among the vars in SCI's
