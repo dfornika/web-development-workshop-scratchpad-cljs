@@ -89,6 +89,8 @@
       "A page that's all yours. Change it however you like - layout, colors, text, images - and see the result straight away."]
      [page-card "#/components" "Components"
       "Ready-made building blocks for your pages, with examples you can edit and copy, the source code behind each one, and the HTML it turns into."]
+     [page-card "#/basics" "ClojureScript Basics"
+      "A beginner-friendly tour of the language: data, functions, let, threading, destructuring, atoms and more - with live examples and common mistakes."]
      [page-card "#/repl-guide" "REPL Guide"
       "How live coding with the REPL works, habits that make it reliable, what to do when it misbehaves, and drills to practise."]
      [page-card "#/js-interop" "JS Interop"

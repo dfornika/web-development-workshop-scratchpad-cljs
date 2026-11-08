@@ -7,49 +7,7 @@
   (:require [reagent.core :as r]
             [scratchpad.components :as c]
             [scratchpad.ui :as ui]
-            [scratchpad.web.editor :as editor]))
-
-;; ---------------------------------------------------------------------------
-;; Helpers
-;; ---------------------------------------------------------------------------
-
-(defn- snippet
-  "Syntax-colored code."
-  [text]
-  ^{:key text}
-  [editor/editor {:initial-doc text
-                  :read-only? true
-                  :line-numbers? false
-                  :font-size "13px"
-                  :style {:margin "8px 0"
-                          :border "1px solid #d0d7de"
-                          :border-radius "6px"
-                          :overflow "hidden"}}])
-
-(defn- example
-  "Syntax-colored `code`, followed by the result of calling `f` - which
-  should be the same code, so the result shown is the real one."
-  [code f]
-  [snippet (str code "\n;; => " (pr-str (f)))])
-
-(def ^:private cell {:padding "6px 12px"
-                     :border-bottom "1px solid #d0d7de"
-                     :text-align "left"
-                     :vertical-align "top"})
-
-(defn- table [headers rows]
-  [:div {:style {:overflow-x "auto"}}
-   [:table {:style {:border-collapse "collapse" :width "100%" :background-color "white"}}
-    [:thead
-     (into [:tr] (for [h headers] ^{:key h} [:th {:style (merge cell {:background-color "#f6f8fa"})} h]))]
-    [:tbody
-     (for [[i row] (map-indexed vector rows)]
-       ;; with-meta, because ^{:key ...} on an (into ...) wouldn't reach the vector
-       (with-meta (into [:tr] (for [value row] [:td {:style cell} value]))
-         {:key i}))]]])
-
-(defn- mono [text]
-  [:code {:style {:white-space "nowrap"}} text])
+            [scratchpad.views.reference :as reference :refer [example mono snippet table]]))
 
 ;; ---------------------------------------------------------------------------
 ;; Sections
@@ -143,23 +101,23 @@
     [:code "get"] ", " [:code "assoc"] ", " [:code "="] " - don't work with it:"]
    [example "(:sampleId #js {:sampleId \"S001\"})" #(:sampleId #js {:sampleId "S001"})]
    [example "(.-sampleId #js {:sampleId \"S001\"})"
-            #(let [^js sample #js {:sampleId "S001"}] (.-sampleId sample))]
+    #(let [^js sample #js {:sampleId "S001"}] (.-sampleId sample))]
    [example "(= #js [1 2 3] #js [1 2 3])" #(= #js [1 2 3] #js [1 2 3])]
    [example "(= [1 2 3] [1 2 3])" #(= [1 2 3] [1 2 3])]
    [c/paragraph
     "So the usual approach is: keep your own data as ClojureScript data, and "
     "convert at the edges, when you hand data to JavaScript or get some back."]
    [example "(clj->js {:sampleId \"S001\" :lineages [\"JN.1\" \"KP.2\"]})"
-            #(clj->js {:sampleId "S001" :lineages ["JN.1" "KP.2"]})]
+    #(clj->js {:sampleId "S001" :lineages ["JN.1" "KP.2"]})]
    [example "(js->clj #js {:sampleId \"S001\"} :keywordize-keys true)"
-            #(js->clj #js {:sampleId "S001"} :keywordize-keys true)]
+    #(js->clj #js {:sampleId "S001"} :keywordize-keys true)]
    [c/paragraph
     "JSON - the text format most web services send and receive - goes "
     "through JavaScript objects:"]
    [example "(js/JSON.stringify (clj->js {:sampleId \"S001\" :qcStatus \"PASS\"}))"
-            #(js/JSON.stringify (clj->js {:sampleId "S001" :qcStatus "PASS"}))]
+    #(js/JSON.stringify (clj->js {:sampleId "S001" :qcStatus "PASS"}))]
    [example "(js->clj (js/JSON.parse \"{\\\"qcStatus\\\": \\\"PASS\\\"}\") :keywordize-keys true)"
-            #(js->clj (js/JSON.parse "{\"qcStatus\": \"PASS\"}") :keywordize-keys true)]
+    #(js->clj (js/JSON.parse "{\"qcStatus\": \"PASS\"}") :keywordize-keys true)]
    [c/callout {:kind :info}
     [:strong "#js is shallow. "]
     [:code "#js {:a {:b 1}}"] " makes a JavaScript object on the outside, but "
@@ -269,33 +227,18 @@
 ;; The page
 ;; ---------------------------------------------------------------------------
 
-(def ^:private sections
-  [{:title "Cheat sheet" :content cheat-sheet}
-   {:title "Methods and properties" :content methods-and-properties}
-   {:title "The browser's built-ins: js/" :content globals}
-   {:title "JavaScript objects vs ClojureScript data" :content objects-and-data}
-   {:title "Events" :content events}
-   {:title "npm libraries" :content npm-libraries}
-   {:title "Gotchas" :content gotchas}])
-
-(defn- section-id [title]
-  (ui/anchor-id "js-interop" title))
-
-(def ^:private toc-entries
-  (for [{:keys [title]} sections]
-    {:id (section-id title) :label title :level 1}))
-
 (defn page []
-  [c/page {:max-width "1200px"}
-   [ui/with-table-of-contents {:top-id "js-interop-top" :entries toc-entries}
-    [c/heading {:level 1} "JS Interop"]
-    [c/callout
-     "How to use JavaScript from ClojureScript: the browser's built-in objects, "
-     "and libraries from npm. The results shown after " [:code ";; =>"]
-     " are real - each example runs when the page is drawn. Try them in the "
-     "REPL too, and change them to see what happens."]
-    (for [{:keys [title content]} sections]
-      ^{:key title}
-      [ui/anchor (section-id title)
-       [c/section {:title title}
-        [content]]])]])
+  [reference/page
+   {:id "js-interop"
+    :title "JS Interop"
+    :intro ["How to use JavaScript from ClojureScript: the browser's built-in objects, "
+            "and libraries from npm. The results shown after " [:code ";; =>"]
+            " are real - each example runs when the page is drawn. Try them in the "
+            "REPL too, and change them to see what happens."]
+    :sections [{:title "Cheat sheet" :content cheat-sheet}
+               {:title "Methods and properties" :content methods-and-properties}
+               {:title "The browser's built-ins: js/" :content globals}
+               {:title "JavaScript objects vs ClojureScript data" :content objects-and-data}
+               {:title "Events" :content events}
+               {:title "npm libraries" :content npm-libraries}
+               {:title "Gotchas" :content gotchas}]}])
