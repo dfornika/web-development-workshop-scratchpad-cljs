@@ -12,7 +12,8 @@
     \"Calva: Load/Evaluate Current File and its Requires/Dependencies\"
     (shortcut: Ctrl+Alt+C Enter)
   Then evaluate forms in the (comment ...) blocks with Alt+Enter."
-  (:require [clojure.string :as str]
+  (:require [cljs.pprint :as pp]
+            [clojure.string :as str]
             [reagent.core :as r]
             [scratchpad.components :as c]))
 

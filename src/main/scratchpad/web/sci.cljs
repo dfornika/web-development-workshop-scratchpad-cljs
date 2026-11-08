@@ -8,6 +8,8 @@
             ["ag-charts-react" :as ag-charts-react]
             ["ag-grid-community" :as ag-grid-community]
             ["ag-grid-react" :as ag-grid-react]
+            [cljs.pprint :as pp]
+            [clojure.string :as str]
             [reagent.core :as r]
             [sci.configs.reagent.reagent :as sci-reagent]
             [sci.core :as sci]
@@ -29,6 +31,27 @@
 (def ^:private main-ns (sci/create-ns 'scratchpad.main nil))
 (def ^:private data-ns (sci/create-ns 'scratchpad.data nil))
 
+;; cljs.pprint's functions print with the compiled code's print, which
+;; doesn't go to the editors' output (or to SCI's with-out-str). So they
+;; make a string here, and the SCI versions below print it.
+(defn- pprint-str* [x]
+  (with-out-str (pp/pprint x)))
+
+(defn- print-table-str*
+  ([rows] (with-out-str (pp/print-table rows)))
+  ([ks rows] (with-out-str (pp/print-table ks rows))))
+
+(def ^:private pprint-source
+  "(in-ns 'cljs.pprint)
+   (defn pprint
+     \"Pretty-prints x: like prn, but long values are spread over several
+     lines.\"
+     [x] (print (pprint-str* x)))
+   (defn print-table
+     \"Prints a sequence of maps as a table. ks (optional) picks the columns.\"
+     ([rows] (print (print-table-str* rows)))
+     ([ks rows] (print (print-table-str* ks rows))))")
+
 (defonce ctx
   (sci/init
    {:namespaces (merge (:namespaces sci-reagent/config)
@@ -38,13 +61,22 @@
                         'clojure.core {'parse-long parse-long
                                        'parse-double parse-double
                                        'parse-boolean parse-boolean
-                                       'parse-uuid parse-uuid}
+                                       'parse-uuid parse-uuid
+                                       ;; tapped values show up in the tap panel
+                                       'tap> tap>
+                                       'add-tap add-tap
+                                       'remove-tap remove-tap}
+                        ;; filled in below, with functions that print the way SCI does
+                        'cljs.pprint {'pprint-str* pprint-str*
+                                      'print-table-str* print-table-str*}
                         'scratchpad.components (sci/copy-ns scratchpad.components components-ns)
                         'scratchpad.state {'db (sci/copy-var state/db state-ns)}
                         'scratchpad.data {'csv-rows (sci/copy-var data/csv-rows data-ns)
                                           'file-name (sci/copy-var data/file-name data-ns)}
                         'scratchpad.main {'render (sci/copy-var render! main-ns)}})
     ;; allow js/alert, js/console, js/document, ...
+    ;; (:require [clojure.pprint :as pp]) works too, like in compiled code
+    :ns-aliases {'clojure.pprint 'cljs.pprint}
     :classes {'js js/globalThis :allow :all}
     ;; npm libraries code typed into the page can (:require [\"...\"]), just
     ;; like compiled code can
@@ -52,6 +84,16 @@
               "ag-charts-react" ag-charts-react
               "ag-grid-community" ag-grid-community
               "ag-grid-react" ag-grid-react}}))
+
+(sci/eval-string* ctx pprint-source)
+
+;; Printing that isn't captured - like a println inside a go block, which
+;; runs after the code that started it has finished - goes to the browser
+;; console (F12), instead of failing.
+(sci/alter-var-root sci/print-fn
+                    (constantly (fn [s]
+                                  (let [s (str/replace s #"\n$" "")]
+                                    (when-not (str/blank? s) (js/console.log s))))))
 
 ;; Lets c/hiccup name the components typed into the page, like
 ;; gene-viewer: it looks for the function among the vars in SCI's
@@ -113,12 +155,17 @@
 
 (defn eval-value
   "Evaluate `code` in namespace `ns` and return the actual value (not a
-  printed version of it): {:ok? true :value v}, or {:ok? false :error msg}."
+  printed version of it): {:ok? true :value v}, or {:ok? false :error msg}.
+  Either way, :out is anything it printed."
   [code ns]
-  (try
-    {:ok? true :value (:val (sci/eval-string+ ctx code {:ns ns}))}
-    (catch :default e
-      {:ok? false :error (error-message e)})))
+  (let [out (atom [])]
+    (try
+      (let [v (sci/binding [sci/print-fn (fn [s] (swap! out conj s))
+                            sci/print-newline true]
+                (:val (sci/eval-string+ ctx code {:ns ns})))]
+        {:ok? true :value v :out (apply str @out)})
+      (catch :default e
+        {:ok? false :error (error-message e) :out (apply str @out)}))))
 
 (defn resolve-var
   "Look up a var's current value, e.g. (resolve-var 'scratchpad.playground/page).

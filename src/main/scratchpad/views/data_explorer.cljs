@@ -310,7 +310,9 @@
      "  \"A table of " file-name ", written by the Data Explorer.\n"
      "  Change anything you like, then press Ctrl+S to see the result.\"\n"
      "  (:require [\"ag-charts-react\" :refer [AgCharts]]\n"
+     "            [\"ag-grid-community\" :refer [themeBalham]]\n"
      "            [\"ag-grid-react\" :refer [AgGridReact]]\n"
+     "            [cljs.pprint :as pp]\n"
      (when uses-str? "            [clojure.string :as str]\n")
      "            [reagent.core :as r]\n"
      "            [scratchpad.data :as data]))\n"
@@ -378,6 +380,9 @@
      "  [:> AgGridReact\n"
      "   {:rowData rows\n"
      "    :columnDefs columns\n"
+     "    ;; a compact look that fits more rows on screen (the default is\n"
+     "    ;; themeQuartz; there's also themeAlpine and themeMaterial)\n"
+     "    :theme themeBalham\n"
      "    ;; for every column: a filter in its menu, and a quick one under its title\n"
      "    :defaultColDef {:filter true :floatingFilter true}\n"
      "    ;; make each column as wide as what's in it\n"
@@ -408,6 +413,8 @@
      "  (count rows)\n"
      "  (first csv-rows)\n"
      "  (first rows)\n"
+     "  (pp/print-table (take 5 rows))\n"
+     "  (tap> (take 20 rows))   ; look at them in the tap panel (bottom right)\n"
      (when category
        (str "  (frequencies (map :" category " rows))\n"))
      (when number-field

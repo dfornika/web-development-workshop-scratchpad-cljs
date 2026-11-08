@@ -5,7 +5,8 @@
   the (comment ...) blocks, and watch the Session 1 page update as you save.
 
   Remember to load this file into the REPL first (Ctrl+Alt+C Enter)."
-  (:require [reagent.core :as r]
+  (:require [cljs.pprint :as pp]
+            [reagent.core :as r]
             [scratchpad.components :as c]))
 
 

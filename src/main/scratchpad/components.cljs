@@ -33,7 +33,8 @@
   To use them in your own file, add this to your `ns` form:
 
       (:require [scratchpad.components :as c])"
-  (:require [clojure.string :as str]
+  (:require [cljs.pprint :as pp]
+            [clojure.string :as str]
             [reagent.dom.server :as rdom-server]
             [scratchpad.state :refer [db]]))
 
@@ -566,6 +567,34 @@
    [:textarea {:style {:font-family "monospace"}
                :read-only true
                :value (str (:config @db))}]])
+
+
+;; ---------------------------------------------------------------------------
+;; Pretty-printing to a string
+;;
+;; pp/pprint and pp/print-table print (to the REPL, or the browser console)
+;; and return nil. These give you what they would print, as a string - to
+;; show on the page, or to look at as a value:
+;;
+;;     [c/code-block (c/pprint-str some-data)]
+;; ---------------------------------------------------------------------------
+
+(defn pprint-str
+  "What (pp/pprint x) would print, as a string: x spread over several
+  lines if it's long.
+
+      [c/code-block (c/pprint-str {:sample \"S001\" :reads [1200 3400]})]"
+  [x]
+  (str/trimr (with-out-str (pp/pprint x))))
+
+(defn table-str
+  "What (pp/print-table rows) would print, as a string: a list of maps as a
+  text table. `ks` (optional) picks the columns, in order.
+
+      (c/table-str [{:id \"S001\" :reads 1200} {:id \"S002\" :reads 3400}])
+      (c/table-str [:id] samples)"
+  ([rows] (str/trim (with-out-str (pp/print-table rows))))
+  ([ks rows] (str/trim (with-out-str (pp/print-table ks rows)))))
 
 
 ;; ---------------------------------------------------------------------------

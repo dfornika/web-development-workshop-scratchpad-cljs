@@ -129,8 +129,12 @@
     "Put a temporary " [:code "(def x x)"] " inside a function to grab the "
     "values it was called with, then explore them at the REPL. (Drill 5)"]
    ["6. Use tap> for big data"
-    [:code "(tap> data)"] " sends a value to the shadow-cljs Inspect page "
-    "(port 9630), where you can click through nested data. (Drill 7)"]
+    [:code "(tap> data)"] " sends a value to the tap panel - the " [:code "tap>"]
+    " button at the bottom right of every page - where you can fold and "
+    "unfold nested data, or see it pretty-printed. It works from the REPL, "
+    "from your code, and from the editors on this site. In Codespaces, "
+    "tapped values also go to the shadow-cljs Inspect page (port 9630). "
+    "(Drill 7)"]
    ["7. Keep state in defonce atoms"
     "State in a " [:code "defonce"] " atom survives saves, and you can read "
     "and change it from the REPL to try out different situations. (Drill 2)"]
