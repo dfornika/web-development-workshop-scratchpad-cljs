@@ -2,12 +2,22 @@
   "The JS Interop page: how to use JavaScript - the browser's built-in
   objects and npm libraries - from ClojureScript.
 
-  The results shown under the examples (;; => ...) aren't typed in by hand:
-  each example's code really runs when the page is drawn."
+  Every example can be edited and run on the page (by SCI, the interpreter
+  the in-browser version uses)."
   (:require [reagent.core :as r]
             [scratchpad.components :as c]
             [scratchpad.ui :as ui]
-            [scratchpad.views.reference :as reference :refer [example mono snippet table]]))
+            [scratchpad.views.reference :as reference :refer [mono snippet table]]
+            [scratchpad.web.sci :as sci]))
+
+;; Where the examples run: made the first time one is drawn.
+(defonce ^:private examples-ns
+  (delay (sci/create-ns! "(ns scratchpad.interop-examples)")))
+
+(defn- example
+  "An example you can edit and run."
+  [code]
+  [reference/example examples-ns code])
 
 ;; ---------------------------------------------------------------------------
 ;; Sections
@@ -40,19 +50,19 @@
    [c/paragraph
     "A symbol starting with a dot calls a method. The object goes first, then "
     "any arguments:"]
-   [example "(.toUpperCase \"gattaca\")" #(.toUpperCase "gattaca")]
-   [example "(.indexOf \"GATTACA\" \"TTA\")" #(.indexOf "GATTACA" "TTA")]
-   [example "(.toFixed 3.14159 2)" #(.toFixed 3.14159 2)]
-   [example "(.padStart \"7\" 3 \"0\")" #(.padStart "7" 3 "0")]
+   [example "(.toUpperCase \"gattaca\")"]
+   [example "(.indexOf \"GATTACA\" \"TTA\")"]
+   [example "(.toFixed 3.14159 2)"]
+   [example "(.padStart \"7\" 3 \"0\")"]
    [c/paragraph
     "A dot and a dash, " [:code ".-"] ", reads a property instead. (A method "
     "is something you call; a property is just a value.)"]
-   [example "(.-length \"GATTACA\")" #(.-length "GATTACA")]
+   [example "(.-length \"GATTACA\")"]
    [c/paragraph
     [:code ".."] " follows a chain of properties and methods, one after another. "
     "These two lines do the same thing:"]
-   [example "(.-hash (.-location js/window))" #(.-hash (.-location js/window))]
-   [example "(.. js/window -location -hash)" #(.. js/window -location -hash)]
+   [example "(.-hash (.-location js/window))"]
+   [example "(.. js/window -location -hash)"]
    [c/paragraph
     [:code "set!"] " changes a property. Try this one in the REPL - look at "
     "the browser tab's title afterwards:"]
@@ -76,17 +86,17 @@
     [:code "js/document"] " (the page), " [:code "js/window"] " (the browser "
     "tab), " [:code "js/console"] ", " [:code "js/Math"] ", " [:code "js/JSON"]
     ", " [:code "js/Date"] ", and so on. You can call them like functions:"]
-   [example "(js/Math.round 2.6)" #(js/Math.round 2.6)]
-   [example "(js/Math.max 3 8 5)" #(js/Math.max 3 8 5)]
-   [example "(js/parseInt \"42\")" #(js/parseInt "42")]
-   [example "(js/parseFloat \"97.5%\")" #(js/parseFloat "97.5%")]
+   [example "(js/Math.round 2.6)"]
+   [example "(js/Math.max 3 8 5)"]
+   [example "(js/parseInt \"42\")"]
+   [example "(js/parseFloat \"97.5%\")"]
    [snippet (str "(js/console.log \"hello\")     ; shows up in the browser console (F12)\n"
                  "(js/alert \"Hello!\")          ; a pop-up message\n"
                  "(js/setTimeout #(js/alert \"Time's up!\") 2000)   ; after 2 seconds")]
    [c/paragraph
     "Put a dot " [:em "after"] " a name to create a new object (like "
     [:code "new"] " in JavaScript):"]
-   [example "(.getFullYear (js/Date. 2026 0 15))" #(.getFullYear (js/Date. 2026 0 15))]
+   [example "(.getFullYear (js/Date. 2026 0 15))"]
    [c/paragraph "And here's " [:code "set!"] " from the last section, on a button:"]
    [title-demo]
    [snippet (str "[c/button {:on-click #(set! (.-title js/document) \"Hello from ClojureScript!\")}\n"
@@ -99,25 +109,20 @@
     "ClojureScript maps and vectors. A JavaScript object can be changed in "
     "place, and the ClojureScript functions you know - " [:code ":key"] ", "
     [:code "get"] ", " [:code "assoc"] ", " [:code "="] " - don't work with it:"]
-   [example "(:sampleId #js {:sampleId \"S001\"})" #(:sampleId #js {:sampleId "S001"})]
-   [example "(.-sampleId #js {:sampleId \"S001\"})"
-    #(let [^js sample #js {:sampleId "S001"}] (.-sampleId sample))]
-   [example "(= #js [1 2 3] #js [1 2 3])" #(= #js [1 2 3] #js [1 2 3])]
-   [example "(= [1 2 3] [1 2 3])" #(= [1 2 3] [1 2 3])]
+   [example "(:sampleId #js {:sampleId \"S001\"})"]
+   [example "(.-sampleId #js {:sampleId \"S001\"})"]
+   [example "(= #js [1 2 3] #js [1 2 3])"]
+   [example "(= [1 2 3] [1 2 3])"]
    [c/paragraph
     "So the usual approach is: keep your own data as ClojureScript data, and "
     "convert at the edges, when you hand data to JavaScript or get some back."]
-   [example "(clj->js {:sampleId \"S001\" :lineages [\"JN.1\" \"KP.2\"]})"
-    #(clj->js {:sampleId "S001" :lineages ["JN.1" "KP.2"]})]
-   [example "(js->clj #js {:sampleId \"S001\"} :keywordize-keys true)"
-    #(js->clj #js {:sampleId "S001"} :keywordize-keys true)]
+   [example "(clj->js {:sampleId \"S001\" :lineages [\"JN.1\" \"KP.2\"]})"]
+   [example "(js->clj #js {:sampleId \"S001\"} :keywordize-keys true)"]
    [c/paragraph
     "JSON - the text format most web services send and receive - goes "
     "through JavaScript objects:"]
-   [example "(js/JSON.stringify (clj->js {:sampleId \"S001\" :qcStatus \"PASS\"}))"
-    #(js/JSON.stringify (clj->js {:sampleId "S001" :qcStatus "PASS"}))]
-   [example "(js->clj (js/JSON.parse \"{\\\"qcStatus\\\": \\\"PASS\\\"}\") :keywordize-keys true)"
-    #(js->clj (js/JSON.parse "{\"qcStatus\": \"PASS\"}") :keywordize-keys true)]
+   [example "(js/JSON.stringify (clj->js {:sampleId \"S001\" :qcStatus \"PASS\"}))"]
+   [example "(js->clj (js/JSON.parse \"{\\\"qcStatus\\\": \\\"PASS\\\"}\") :keywordize-keys true)"]
    [c/callout {:kind :info}
     [:strong "#js is shallow. "]
     [:code "#js {:a {:b 1}}"] " makes a JavaScript object on the outside, but "
@@ -232,9 +237,9 @@
    {:id "js-interop"
     :title "JS Interop"
     :intro ["How to use JavaScript from ClojureScript: the browser's built-in objects, "
-            "and libraries from npm. The results shown after " [:code ";; =>"]
-            " are real - each example runs when the page is drawn. Try them in the "
-            "REPL too, and change them to see what happens."]
+            "and libraries from npm. " [:strong "Every example is live:"] " change it and "
+            "press " [:strong "Ctrl+Enter"] " (or " [:strong "▶ Run"] ") to run it - it's "
+            "running in this browser tab, so " [:code "js/document"] " is this very page."]
     :sections [{:title "Cheat sheet" :content cheat-sheet}
                {:title "Methods and properties" :content methods-and-properties}
                {:title "The browser's built-ins: js/" :content globals}
