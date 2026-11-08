@@ -90,19 +90,22 @@
   If the code gives a channel (from go, or http/get) or a promise (from
   js/fetch, or an ^:async function), what it delivers later is added."
   [code ns result]
-  (let [{:keys [ok? value error]} (sci/eval-value code ns)
+  (let [{:keys [ok? value error out]} (sci/eval-value code ns)
+        ;; anything it printed (println, pp/pprint...) goes above the result
+        out (when-not (str/blank? out) (str/trimr out))
         ;; only the latest run may update the result
         token (js-obj)
         later! (fn [text ok?]
                  (when (identical? token (:token @result))
-                   (swap! result assoc :ok? ok? :text text)))]
+                   (swap! result assoc :ok? ok? :text text)))
+        result! #(reset! result (assoc % :token token :out out))]
     (swap! run-count inc)
     (cond
       (not ok?)
-      (reset! result {:ok? false :text (friendly-error error) :token token})
+      (result! {:ok? false :text (friendly-error error)})
 
       (channel? value)
-      (do (reset! result {:ok? true :text "a channel - waiting for a value..." :token token})
+      (do (result! {:ok? true :text "a channel - waiting for a value..."})
           (async/take! value
                        (fn [v]
                          (swap! run-count inc)
@@ -112,7 +115,7 @@
                                  true))))
 
       (promise? value)
-      (do (reset! result {:ok? true :text "a promise - waiting for it to finish..." :token token})
+      (do (result! {:ok? true :text "a promise - waiting for it to finish..."})
           (.then ^js value
                  (fn [v]
                    (swap! run-count inc)
@@ -121,7 +124,7 @@
                    (later! (str "a promise, which failed: " (or (ex-message e) e)) false))))
 
       :else
-      (reset! result {:ok? true :text (show-value value) :token token}))))
+      (result! {:ok? true :text (show-value value)}))))
 
 (defn- small-button [opts label]
   [c/button (merge {:variant :secondary
@@ -161,7 +164,7 @@
                                    (reset! result {:ok? true :text "(not run yet - press Ctrl+Enter or Run)"}))
                                  (reset! edited? false)
                                  (reset! stale? false))]
-     (let [{:keys [ok? text]} @result]
+     (let [{:keys [ok? text out]} @result]
        [:div {:style {:margin "8px 0"}}
         [editor/editor {:initial-doc code
                         :view-ref view-ref
@@ -191,6 +194,8 @@
                         :font-family "inherit"
                         :color (if ok? "#57606a" "#cf222e")
                         :opacity (if @stale? 0.5 1)}}
+          (when out
+            [:span {:style {:color "#24292f"}} out "\n"])
           (if ok? (str ";; => " text) (str ";; Error: " text))]
          (when @stale?
            [:span {:style {:color "#57606a" :font-family "Arial, sans-serif" :font-size "12px"

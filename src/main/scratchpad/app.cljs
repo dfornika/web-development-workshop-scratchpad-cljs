@@ -16,7 +16,8 @@
             [scratchpad.views.session :as session]
             [scratchpad.views.session-1 :as session-1]
             [scratchpad.views.session-2 :as session-2]
-            [scratchpad.views.later-sessions :as later-sessions]))
+            [scratchpad.views.later-sessions :as later-sessions]
+            [scratchpad.views.taps :as taps]))
 
 (def views
   [{:id :home :label "Home"}
@@ -75,4 +76,6 @@
           :basics [basics/page]
           :repl-guide [repl-guide/page]
           :js-interop [js-interop/page]
-          :fetching [fetching/page]))]])))
+          :fetching [fetching/page]))]
+      ;; values sent with (tap> ...), from anywhere
+      [taps/panel-view]])))

@@ -6,7 +6,8 @@
 
   Looking for ideas? The Components page shows ready-made pieces you can
   copy in here, like [c/card ...] or [c/button ...]."
-  (:require [scratchpad.components :as c]
+  (:require [cljs.pprint :as pp]
+            [scratchpad.components :as c]
             [scratchpad.state :refer [db]]))
 
 (defn welcome-banner
@@ -125,6 +126,19 @@
   ;; Notice :on-click doesn't appear in the HTML: React attaches event
   ;; handlers with JavaScript instead.
   (c/print-html [c/button {:on-click (fn [] (js/alert "Hi"))} "Click"])
+
+  ;; Pretty-printing: pp/pprint spreads long data over several lines, and
+  ;; pp/print-table shows a list of maps as a table. Both print (and
+  ;; return nil); c/pprint-str and c/table-str give you the text instead.
+  (def samples [{:id "S001" :reads 1200 :qc "pass"}
+                {:id "S002" :reads 3400 :qc "fail"}])
+  (pp/pprint {:run "RUN_001" :samples samples})
+  (pp/print-table samples)
+  (c/table-str [:id :qc] samples)
+
+  ;; tap> sends a value to the tap panel (the "tap>" button at the bottom
+  ;; right of the page), where you can unfold nested data
+  (tap> {:run "RUN_001" :samples samples})
 
   ;; Components need saving to show up on the page. If you've re-defined one
   ;; at the REPL instead, this redraws the page:

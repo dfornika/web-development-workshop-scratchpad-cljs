@@ -9,6 +9,7 @@
   The AG Grid documentation lists every option:
   https://www.ag-grid.com/react-data-grid/"
   (:require ["ag-grid-react" :refer [AgGridReact]]
+            [cljs.pprint :as pp]
             [reagent.core :as r]
             [scratchpad.components :as c]))
 

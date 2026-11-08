@@ -13,6 +13,7 @@
     (shortcut: Ctrl+Alt+C Enter)
   Then evaluate forms in the (comment ...) blocks with Alt+Enter."
   (:require ["ag-grid-react" :refer [AgGridReact]]
+            [cljs.pprint :as pp]
             [reagent.core :as r]
             [scratchpad.components :as c]))
 
