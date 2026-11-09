@@ -136,10 +136,15 @@
     [:code "c/tap->"] " does the same in the middle of a " [:code "->"] " or "
     [:code "->>"] " pipeline: it taps the value and passes it on. In Codespaces, "
     "tapped values also go to the shadow-cljs Inspect page (port 9630). "
-    "(Drill 7)"]
+    "(Drill 7) To see what's different between two values, tap them both "
+    "and press Compare on each."]
    ["7. Keep state in defonce atoms"
     "State in a " [:code "defonce"] " atom survives saves, and you can read "
-    "and change it from the REPL to try out different situations. (Drill 2)"]
+    "and change it from the REPL to try out different situations. (Drill 2) "
+    "The tap panel's History tab records every change to the app state, "
+    [:code "db"] ", and lets you step back through them - the page goes back "
+    "too. " [:code "(c/track! \"my-atom\" my-atom)"] " does the same for "
+    "your own atoms."]
    ["8. Reload the browser tab now and then"
     "The running page remembers everything you've ever evaluated, including "
     "functions you've since renamed or deleted. A reload makes sure your code "
