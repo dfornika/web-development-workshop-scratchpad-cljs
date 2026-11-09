@@ -36,7 +36,8 @@
   (:require [cljs.pprint :as pp]
             [clojure.string :as str]
             [reagent.dom.server :as rdom-server]
-            [scratchpad.state :refer [db]]))
+            [scratchpad.state :refer [db]]
+            [scratchpad.views.history :as history]))
 
 (defn- split-props
   "Split a component's arguments into [options-map children]."
@@ -599,6 +600,29 @@
   [x]
   (tap> x)
   x)
+
+(defn track!
+  "Keeps every value atom `a` holds from now on, so you can step back
+  through them in the History tab of the tap panel (the \"tap>\" button
+  at the bottom right) - and watch the page go back with them. `label`
+  names it there.
+
+      (c/track! \"selected\" selected)
+
+  Option :ignore leaves out keys of a map: changes to only those aren't
+  recorded, and going back leaves them as they are.
+
+      (c/track! \"state\" state {:ignore #{:loading?}})
+
+  The app state, db, is tracked already."
+  ([a] (history/track! a))
+  ([label a] (history/track! label a))
+  ([label a opts] (history/track! label a opts)))
+
+(defn untrack!
+  "Stops keeping the history of the atom tracked as `label`."
+  [label]
+  (history/untrack! label))
 
 (defn table-str
   "What (pp/print-table rows) would print, as a string: a list of maps as a

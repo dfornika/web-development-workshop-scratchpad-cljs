@@ -145,6 +145,13 @@
        c/tap->
        (map :reads))
 
+  ;; Every change to db is recorded: open the tap panel's History tab, and
+  ;; step back through the swap!s above - the page goes back with them.
+  ;; c/track! does the same for your own atoms:
+  (defonce counter (atom 0))
+  (c/track! "counter" counter)
+  (swap! counter inc)
+
   ;; Components need saving to show up on the page. If you've re-defined one
   ;; at the REPL instead, this redraws the page:
   (scratchpad.main/render)
