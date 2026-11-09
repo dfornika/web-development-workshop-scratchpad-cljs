@@ -207,11 +207,11 @@
             (str "{:title {:text " (pr-str (str "Rows by " xl)) "}" sub "\n"
                  "                :data data\n"
                  "                :series [" (if (= id :count-bar)
-                                             (str "{:type \"bar\" :xKey " (pr-str xf) " :xName " (pr-str xl)
-                                                  "\n                          :yKey \"count\" :yName \"Rows\"}")
-                                             (str "{:type \"pie\" :angleKey \"count\" :angleName \"Rows\""
-                                                  "\n                          :legendItemKey " (pr-str xf)
-                                                  "\n                          :calloutLabelKey " (pr-str xf) "}"))
+                                               (str "{:type \"bar\" :xKey " (pr-str xf) " :xName " (pr-str xl)
+                                                    "\n                          :yKey \"count\" :yName \"Rows\"}")
+                                               (str "{:type \"pie\" :angleKey \"count\" :angleName \"Rows\""
+                                                    "\n                          :legendItemKey " (pr-str xf)
+                                                    "\n                          :calloutLabelKey " (pr-str xf) "}"))
                  "]}")))
 
       :share-stacked
@@ -353,17 +353,17 @@
   ([chart-type x y] (chart-section chart-type x y "@shown"))
   ([chart-type x y source]
    (str chart-start
-       "\n"
-       (if chart-type
-         (str (chart-body chart-type x y source)
-              "\n"
-              ";; Ideas: change \"bar\" to \"line\", add :fill \"#004a87\" to a series,\n"
-              ";; or look at (chart-data " source ") at the REPL. More in AG Charts'\n"
-              ";; documentation: https://www.ag-grid.com/charts/react/quick-start/\n")
-         (str ";; No chart yet: choose one above the table and press \"Make chart\".\n"
-              "(def chart nil)\n"))
-       "\n"
-       chart-end)))
+        "\n"
+        (if chart-type
+          (str (chart-body chart-type x y source)
+               "\n"
+               ";; Ideas: change \"bar\" to \"line\", add :fill \"#004a87\" to a series,\n"
+               ";; or look at (chart-data " source ") at the REPL. More in AG Charts'\n"
+               ";; documentation: https://www.ag-grid.com/charts/react/quick-start/\n")
+          (str ";; No chart yet: choose one above the table and press \"Make chart\".\n"
+               "(def chart nil)\n"))
+        "\n"
+        chart-end)))
 
 (defn- with-chart-section
   "`code` with its chart part replaced by `section` (or, if it hasn't got
@@ -444,12 +444,12 @@
      "\n"
      "(def columns\n"
      "  [" (str/join "\n   " (for [[i [header field type]] (map-indexed vector columns)]
-                              (str "{:field " (pr-str field)
-                                   " :headerName " (pr-str header)
-                                   " :cellDataType " (pr-str (get-in type-info [type :ag]))
+                               (str "{:field " (pr-str field)
+                                    " :headerName " (pr-str header)
+                                    " :cellDataType " (pr-str (get-in type-info [type :ag]))
                                    ;; the first column stays put when scrolling sideways
-                                   (when (zero? i) " :pinned \"left\"")
-                                   "}")))
+                                    (when (zero? i) " :pinned \"left\"")
+                                    "}")))
      "])\n"
      "\n"
      ";; ---------------------------------------------------------------------------\n"
@@ -860,16 +860,23 @@
 ;; Replay: bring the rows in a batch at a time
 ;;
 ;; The code's `arrived` atom holds the rows the table shows. Replay puts
-;; them back a batch at a time - in the table's current order, either a
-;; number of rows at a time or one value of a column (like a run ID) at a
-;; time - so you can watch the chart change as results come in.
+;; them back in the table's current order - a row at a time, or a batch
+;; for each value of a column (like a run ID) - a few rows or batches
+;; every second or so, so you can watch the chart change as results come in.
 ;; ---------------------------------------------------------------------------
 
 ;; {:batches [[row ...] ...] :step 2 :playing? true :render-count 3}
 ;; :batches is worked out when Play is first pressed; :render-count is
 ;; the code it was for - after loading the code again, it starts over.
 (defonce ^:private replay (r/atom {}))
-(defonce ^:private replay-options (r/atom {:by "" :size 20 :ms 1000}))
+;; :by is the column to batch by ("" for a row at a time), :per-tick how
+;; many rows or batches come in every :ms milliseconds (as typed, so it
+;; can be blank while you type)
+(defonce ^:private replay-options (r/atom {:by "" :per-tick "1" :ms 1000}))
+
+(defn- per-tick []
+  (let [n (js/parseInt (:per-tick @replay-options))]
+    (if (and (js/isFinite n) (pos? n)) n 1)))
 (defonce ^:private timer (atom nil))
 (defonce ^:private preview-ref (atom nil))
 
@@ -905,11 +912,11 @@
       rows)))
 
 (defn- batches
-  "The rows in batches: `size` at a time, or one value of column `by` at a
-  time (in the order each value first comes up)."
-  [rows by size]
+  "The rows in batches: one for each value of column `by` (in the order
+  each value first comes up), or - if `by` is \"\" - one for each row."
+  [rows by]
   (if (str/blank? by)
-    (mapv vec (partition-all size rows))
+    (mapv vector rows)
     (let [k (keyword by)
           groups (group-by k rows)]
       (mapv #(get groups %) (distinct (map k rows))))))
@@ -933,19 +940,19 @@
         (reset! a (into [] cat (take step bs)))))))
 
 (defn- start!
-  "Works out the batches (if it's a new replay) and plays them: one value
-  of column `by` at a time, or (if it's \"\") a number of rows at a time."
+  "Works out the batches (if it's a new replay) and plays them: one for
+  each value of column `by`, or (if it's \"\") one for each row."
   [by]
-  (let [{:keys [size ms]} @replay-options
+  (let [{:keys [ms]} @replay-options
         {bs :batches :keys [step]} @replay
         rows (sci/resolve-var 'scratchpad.my-data/rows)
         fresh? (or (nil? bs) (>= step (count bs)))]
     (when (and (sequential? rows) (arrived-atom))
       (when fresh?
-        (reset! replay {:batches (batches (table-order rows) by size)
+        (reset! replay {:batches (batches (table-order rows) by)
                         :step 0
                         :render-count @sci/render-count})
-        (go-to-step! 1))
+        (go-to-step! (per-tick)))
       (some-> @timer js/clearInterval)
       (swap! replay assoc :playing? true)
       (reset! timer
@@ -953,7 +960,7 @@
                (fn []
                  (let [{bs :batches :keys [step]} @replay]
                    (if (< step (count bs))
-                     (go-to-step! (inc step))
+                     (go-to-step! (+ step (per-tick)))
                      (stop!))))
                ms)))))
 
@@ -965,9 +972,13 @@
     (reset! a (sci/resolve-var 'scratchpad.my-data/rows)))
   (reset! replay {}))
 
+;; controls that belong together, kept on one line when the bar wraps
+(def ^:private group-style
+  {:display "inline-flex" :align-items "center" :gap "6px" :white-space "nowrap"})
+
 (defn- replay-bar [info]
   (let [{bs :batches :keys [step playing? render-count]} @replay
-        {:keys [by size ms]} @replay-options
+        {:keys [by ms] n-text :per-tick} @replay-options
         ;; a column from another file, that this one hasn't got
         by (if (some #(= by (:field %)) info) by "")
         n @sci/render-count]
@@ -979,28 +990,43 @@
                      :border-bottom "1px solid #d0d7de" :background-color "#f6f8fa"}}
        "⏯ Replay needs newer code: press \"Reset to original\" to get it."]
       (let [active? (some? bs)
-            batch-label (when (and active? (pos? step))
+            by-row? (str/blank? by)
+            one? (= 1 (per-tick))
+            batch-label (when (and active? (pos? step) (not by-row?))
                           (let [b (nth bs (dec step))]
-                            (if (str/blank? by)
-                              (str (count b) " rows")
-                              (str (get (first b) (keyword by)) " (" (count b) " rows)"))))]
+                            (str (get (first b) (keyword by)) " (" (count b) " rows)")))]
         [:div {:style {:display "flex" :flex-wrap "wrap" :align-items "center" :gap "6px"
                        :padding "6px 8px" :font-size "13px" :color "#57606a"
                        :border-bottom "1px solid #d0d7de" :background-color "#f6f8fa"}}
          [:span {:title (str "Bring the rows in a batch at a time, in the table's order "
                              "(sort it first, if you like), and watch the chart change")}
-          "⏯ Replay, a batch per"]
-         [:select {:value ms :style select-style :disabled active?
-                   :on-change #(swap! replay-options assoc :ms (js/parseInt (.. % -target -value)))}
-          [:option {:value 500} "½ second"]
-          [:option {:value 1000} "second"]
-          [:option {:value 2000} "2 seconds"]]
-         [:span "of"]
-         [:select {:value by :style select-style :disabled active?
-                   :on-change #(swap! replay-options assoc :by (.. % -target -value))}
-          [:option {:value ""} (str size " rows")]
-          (for [{:keys [field label]} info]
-            ^{:key field} [:option {:value field} (str "each " label)])]
+          "⏯ Replay:"]
+         [:span {:style group-style}
+          [:input {:type "number" :min 1 :value n-text
+                   :title "How many rows (or batches) come in each time"
+                   :on-change #(swap! replay-options assoc :per-tick (.. % -target -value))
+                   :style (merge select-style {:width "52px"})}]
+          [:span (if by-row?
+                   (if one? "row per" "rows per")
+                   (if one? "batch per" "batches per"))]
+          [:select {:value ms :style select-style
+                    :on-change (fn [e]
+                                 (swap! replay-options assoc :ms (js/parseInt (.. e -target -value)))
+                                 ;; playing: carry on at the new speed
+                                 (when playing? (start! by)))}
+           [:option {:value 250} "¼ second"]
+           [:option {:value 500} "½ second"]
+           [:option {:value 1000} "second"]
+           [:option {:value 2000} "2 seconds"]
+           [:option {:value 5000} "5 seconds"]]]
+         [:span {:style group-style}
+          [:span "batched by"]
+          [:select {:value by :style select-style :disabled active?
+                    :title (if active? "Press \"Show all rows\" to change this" "")
+                    :on-change #(swap! replay-options assoc :by (.. % -target -value))}
+           [:option {:value ""} "row"]
+           (for [{:keys [field label]} info]
+             ^{:key field} [:option {:value field} label])]]
          (if playing?
            [c/button {:style {:padding "3px 10px" :font-size "13px"} :on-click stop!} "⏸ Pause"]
            [c/button {:style {:padding "3px 10px" :font-size "13px"} :on-click #(start! by)}
@@ -1014,7 +1040,7 @@
                                   (go-to-step! (js/parseInt (.. e -target -value))))
                      :style {:flex "1 1 120px" :min-width "100px"}}]
             [:span {:style {:white-space "nowrap"}}
-             "batch " step " of " (count bs)
+             (if by-row? "row " "batch ") step " of " (count bs)
              (when batch-label [:<> ": " [:strong {:style {:color "#24292f"}} batch-label]])]
             [c/button {:variant :secondary :style {:padding "3px 10px" :font-size "13px"}
                        :on-click finish!}
