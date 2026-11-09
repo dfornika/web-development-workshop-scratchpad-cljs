@@ -31,7 +31,9 @@
    :log (r/atom ())
    :next-log-id (atom 0)
    :view-ref (atom nil)
-   :split (r/atom nil)})
+   :split (r/atom nil)          ; % of the width for the code side
+   :output-split (r/atom nil)   ; % of the code side's height for the editor
+   :maximized? (r/atom false)}) ; the right-hand side filling the whole width
 
 ;; ---------------------------------------------------------------------------
 ;; Saving edits in the browser
@@ -143,8 +145,8 @@
 (defn- output [{:keys [log]}]
   [:div {:style {:font-family "ui-monospace, Menlo, Consolas, monospace"
                  :font-size "13px"
-                 :flex "0 0 28%"
-                 :min-height "100px"
+                 :flex "1 1 0"
+                 :min-height "40px"
                  :box-sizing "border-box"
                  :overflow-y "auto"
                  :padding "4px 12px"
@@ -160,63 +162,76 @@
          [log-entry entry])))])
 
 ;; ---------------------------------------------------------------------------
-;; The draggable divider between the code and the right-hand side
+;; Draggable dividers: between the code and the right-hand side, and
+;; between the editor and the output under it
 ;; ---------------------------------------------------------------------------
 
-(def ^:private default-split 50)
+(def ^:private dividers
+  ;; for each divider: which atom in the workspace it sets, how it's saved,
+  ;; its default, and how far it can go (in % of its container)
+  {:columns {:atom :split :key "-split" :default 50 :min 25 :max 75}
+   :rows {:atom :output-split :key "-output-split" :default 72 :min 20 :max 90}})
 
-(defn- split-key [{:keys [id]}]
-  (str "scratchpad/" id "-split"))
+(defn- divider-key [{:keys [id]} which]
+  (str "scratchpad/" id (get-in dividers [which :key])))
 
-(defn- clamp-split
-  "Keep the divider between 25% and 75% of the width."
-  [percent]
-  (max 25 (min 75 percent)))
+(defn- clamp [which percent]
+  (let [{:keys [min max]} (get dividers which)]
+    (cljs.core/max min (cljs.core/min max percent))))
 
-(defn- load-split [ws]
-  (try
-    (let [v (js/parseFloat (.getItem js/localStorage (split-key ws)))]
-      (if (js/isNaN v) default-split (clamp-split v)))
-    (catch :default _ default-split)))
+(defn- load-position [ws which]
+  (let [default (get-in dividers [which :default])]
+    (try
+      (let [v (js/parseFloat (.getItem js/localStorage (divider-key ws which)))]
+        (if (js/isNaN v) default (clamp which v)))
+      (catch :default _ default))))
 
-(defn- save-split! [ws percent]
-  (try (.setItem js/localStorage (split-key ws) (str percent)) (catch :default _ nil)))
+(defn- save-position! [ws which percent]
+  (try (.setItem js/localStorage (divider-key ws which) (str percent)) (catch :default _ nil)))
 
 (defn- divider
-  "Drag to resize the two sides; double-click to put it back in the middle.
-  Uses pointer capture, so the drag keeps working even if the pointer moves
-  over the editor or the preview."
-  [{:keys [split] :as ws} container-ref]
+  "Drag to resize the two sides (`which` is :columns, for side by side, or
+  :rows, for one above the other); double-click to reset. Uses pointer
+  capture, so the drag keeps working even if the pointer moves over the
+  editor or the preview."
+  [ws which container-ref]
   (r/with-let [dragging? (r/atom false)]
-    [:div {:class "playground-divider"
-           :title "Drag to resize. Double-click to reset."
-           :style {:flex "0 0 12px"
-                   :cursor "col-resize"
-                   :display "flex"
-                   :justify-content "center"
-                   :touch-action "none"}
-           :on-pointer-down (fn [^js e]
-                              (.preventDefault e)
-                              (.setPointerCapture (.-currentTarget e) (.-pointerId e))
-                              (reset! dragging? true))
-           :on-pointer-move (fn [^js e]
-                              (when-let [^js el (and @dragging? @container-ref)]
-                                (let [rect (.getBoundingClientRect el)]
-                                  (reset! split (clamp-split
-                                                 (* 100 (/ (- (.-clientX e) (.-left rect))
-                                                           (.-width rect))))))))
-           :on-pointer-up (fn [_]
-                            (reset! dragging? false)
-                            (save-split! ws @split))
-           :on-lost-pointer-capture (fn [_] (reset! dragging? false))
-           :on-double-click (fn [_]
-                              (reset! split default-split)
-                              (save-split! ws default-split))}
-     [:div {:class "playground-divider-line"
-            :style {:width "3px"
-                    :height "100%"
-                    :border-radius "2px"
-                    :background-color (if @dragging? "#54aeff" "#d0d7de")}}]]))
+    (let [position (get ws (get-in dividers [which :atom]))
+          columns? (= which :columns)]
+      [:div {:class "playground-divider"
+             :title "Drag to resize. Double-click to reset."
+             :style {:flex (if columns? "0 0 12px" "0 0 10px")
+                     :cursor (if columns? "col-resize" "row-resize")
+                     :display "flex"
+                     :justify-content "center"
+                     :align-items "center"
+                     :touch-action "none"}
+             :on-pointer-down (fn [^js e]
+                                (.preventDefault e)
+                                (.setPointerCapture (.-currentTarget e) (.-pointerId e))
+                                (reset! dragging? true))
+             :on-pointer-move (fn [^js e]
+                                (when-let [^js el (and @dragging? @container-ref)]
+                                  (let [rect (.getBoundingClientRect el)]
+                                    (reset! position
+                                            (clamp which
+                                                   (* 100 (if columns?
+                                                            (/ (- (.-clientX e) (.-left rect)) (.-width rect))
+                                                            (/ (- (.-clientY e) (.-top rect)) (.-height rect)))))))))
+             :on-pointer-up (fn [_]
+                              (reset! dragging? false)
+                              (save-position! ws which @position))
+             :on-lost-pointer-capture (fn [_] (reset! dragging? false))
+             :on-double-click (fn [_]
+                                (let [default (get-in dividers [which :default])]
+                                  (reset! position default)
+                                  (save-position! ws which default)))}
+       [:div {:class "playground-divider-line"
+              :style (merge {:border-radius "2px"
+                             :background-color (if @dragging? "#54aeff" "#d0d7de")}
+                            (if columns?
+                              {:width "3px" :height "100%"}
+                              {:height "3px" :width "100%"}))}]])))
 
 ;; ---------------------------------------------------------------------------
 ;; The workspace itself
@@ -255,9 +270,13 @@
      :preview-label  the heading over the right-hand side
      :top-offset-px  extra space taken above the workspace (besides the nav bar)
    `preview` is what to show on the right (it scrolls on its own)."
-  [{:keys [files current view-ref split] :as ws} {:keys [help preview-label top-offset-px] :or {top-offset-px 0}} preview]
+  [{:keys [files current view-ref split output-split maximized?] :as ws}
+   {:keys [help preview-label top-offset-px] :or {top-offset-px 0}}
+   preview]
   (r/with-let [container-ref (atom nil)
-               _ (when (nil? @split) (reset! split (load-split ws)))]
+               code-ref (atom nil)
+               _ (when (nil? @split) (reset! split (load-position ws :columns)))
+               _ (when (nil? @output-split) (reset! output-split (load-position ws :rows)))]
     (let [index @current
           file (nth files index)]
       ;; Exactly fills the window below the nav bar, so the page itself never
@@ -274,10 +293,11 @@
               :style {:flex "1 1 0"
                       :min-height 0
                       :display "flex"}}
-        ;; left: code + output
+        ;; left: code + output. Hidden (but still there, so the editor keeps
+        ;; its undo history) while the right-hand side is maximized.
         [:div {:style {:flex (str "0 0 calc(" @split "% - 6px)")
                        :min-width 0
-                       :display "flex"
+                       :display (if @maximized? "none" "flex")
                        :flex-direction "column"
                        :gap "8px"}}
          [c/row {:gap "6px"}
@@ -289,22 +309,39 @@
           [small-button {:on-click #(reset-to-original! ws)} "Reset to original"]]
          [file-tabs ws]
          ;; a fresh editor for each file (keyed by its index)
-         ^{:key index}
-         [editor/editor {:initial-doc (file-text file)
-                         :view-ref view-ref
-                         :on-change #(save! file %)
-                         :on-eval #(eval-form! ws %)
-                         :on-load #(load-file! ws index %)
-                         :style {:flex "1 1 0" :min-height 0}}]
-         [output ws]]
-        [divider ws container-ref]
+         ;; the editor, and the output under it, with a divider between
+         [:div {:ref #(reset! code-ref %)
+                :style {:flex "1 1 0" :min-height 0 :display "flex" :flex-direction "column"}}
+          [:div {:style {:flex (str "0 0 calc(" @output-split "% - 5px)")
+                         :min-height 0
+                         :display "flex"
+                         :flex-direction "column"}}
+           ^{:key index}
+           [editor/editor {:initial-doc (file-text file)
+                           :view-ref view-ref
+                           :on-change #(save! file %)
+                           :on-eval #(eval-form! ws %)
+                           :on-load #(load-file! ws index %)
+                           :style {:flex "1 1 0" :min-height 0}}]]
+          [divider ws :rows code-ref]
+          [output ws]]]
+        (when-not @maximized?
+          [divider ws :columns container-ref])
         ;; right: whatever this page shows
         [:div {:style {:flex "1 1 0"
                        :min-width 0
                        :display "flex"
                        :flex-direction "column"
                        :gap "8px"}}
-         [:div {:style {:font-size "13px" :color "#57606a" :padding "6px 0"}} preview-label]
+         [:div {:style {:display "flex" :align-items "center" :gap "8px"
+                        :font-size "13px" :color "#57606a"}}
+          [small-button {:on-click #(swap! maximized? not)
+                         :title (if @maximized?
+                                  "Show the code again"
+                                  "Make this side fill the whole width (hides the code for now)")
+                         :style {:padding "2px 8px" :font-size "12px"}}
+           (if @maximized? "⤡ Restore" "⤢ Maximize")]
+          preview-label]
          [:div {:style {:flex "1 1 0"
                         :min-height 0
                         :overflow "auto"
