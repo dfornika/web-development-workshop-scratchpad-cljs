@@ -160,23 +160,37 @@
   ";; ============================ end of the chart ============================\n")
 
 (defn- chart-component
-  "The code for a `chart` component drawing `options` (code for a map)."
-  [options]
-  (str "(defn chart []\n"
-       "  [:> AgCharts\n"
-       "   {:style {:height \"100%\"}\n"
-       "    :options " options "}])\n"))
+  "The code for a `chart` component drawing `options` (code for a map,
+  which uses `data`). `source` is the code for the rows it draws: \"@shown\"
+  (the rows that pass the table's filters) or \"rows\" (all of them)."
+  [source options]
+  (str (if (= source "@shown")
+         (str ";; It draws the rows in `shown` - the ones that pass the table's\n"
+              ";; filters - so filter the table, and the chart follows.\n")
+         (str ";; It draws all the rows. (Press \"Reset to original\" for newer code,\n"
+              ";; where the chart follows the table's filters.)\n"))
+       "(defn chart []\n"
+       "  (let [data (chart-data " source ")]\n"
+       "    [:> AgCharts\n"
+       "     {:style {:height \"100%\"}\n"
+       "      :options " options "}]))\n"))
+
+(defn- subtitle [source]
+  (when (= source "@shown")
+    (str "\n                :subtitle {:text (str (count @shown) \" of \" (count rows) \" rows\")}")))
 
 (defn- chart-body
   "The code for one kind of chart. `x` and `y` are {:field \"sampleId\"
   :label \"sample_id\"}."
-  [{:keys [id]} x y]
-  (let [xf (:field x) xl (:label x) yf (:field y) yl (:label y)]
+  [{:keys [id]} x y source]
+  (let [xf (:field x) xl (:label x) yf (:field y) yl (:label y)
+        chart-component (partial chart-component source)
+        sub (subtitle source)]
     (case id
       (:count-bar :count-pie)
       (str ";; How many rows have each " xl ", most common first:\n"
            ";;   ({:" xf " \"...\" :count 12} ...)\n"
-           "(def chart-data\n"
+           "(defn chart-data [rows]\n"
            "  (->> rows\n"
            "       (map :" xf ")\n"
            "       (frequencies)\n"
@@ -184,30 +198,30 @@
            "       (sort-by :count >)))\n"
            "\n"
            (chart-component
-            (str "{:title {:text " (pr-str (str "Rows by " xl)) "}\n"
-                 "              :data chart-data\n"
-                 "              :series [" (if (= id :count-bar)
+            (str "{:title {:text " (pr-str (str "Rows by " xl)) "}" sub "\n"
+                 "                :data data\n"
+                 "                :series [" (if (= id :count-bar)
                                              (str "{:type \"bar\" :xKey " (pr-str xf) " :xName " (pr-str xl)
-                                                  "\n                        :yKey \"count\" :yName \"Rows\"}")
+                                                  "\n                          :yKey \"count\" :yName \"Rows\"}")
                                              (str "{:type \"pie\" :angleKey \"count\" :angleName \"Rows\""
-                                                  "\n                        :legendItemKey " (pr-str xf)
-                                                  "\n                        :calloutLabelKey " (pr-str xf) "}"))
+                                                  "\n                          :legendItemKey " (pr-str xf)
+                                                  "\n                          :calloutLabelKey " (pr-str xf) "}"))
                  "]}")))
 
       :histogram
       (str ";; The rows that have a " xl ". AG Charts sorts them into bins itself.\n"
-           "(def chart-data\n"
+           "(defn chart-data [rows]\n"
            "  (filterv (comp number? :" xf ") rows))\n"
            "\n"
            (chart-component
-            (str "{:title {:text " (pr-str (str "Spread of " xl)) "}\n"
-                 "              :data chart-data\n"
-                 "              :series [{:type \"histogram\" :xKey " (pr-str xf) " :xName " (pr-str xl) "}]}")))
+            (str "{:title {:text " (pr-str (str "Spread of " xl)) "}" sub "\n"
+                 "                :data data\n"
+                 "                :series [{:type \"histogram\" :xKey " (pr-str xf) " :xName " (pr-str xl) "}]}")))
 
       :average-bar
       (str ";; The average " yl " for each " xl ":\n"
            ";;   ({:" xf " \"...\" :average 12.5} ...)\n"
-           "(def chart-data\n"
+           "(defn chart-data [rows]\n"
            "  (->> rows\n"
            "       (filter (comp number? :" yf "))\n"
            "       (group-by :" xf ")\n"
@@ -218,30 +232,30 @@
            "       (sort-by :" xf ")))\n"
            "\n"
            (chart-component
-            (str "{:title {:text " (pr-str (str "Average " yl " by " xl)) "}\n"
-                 "              :data chart-data\n"
-                 "              :series [{:type \"bar\" :xKey " (pr-str xf) " :xName " (pr-str xl)
-                 "\n                        :yKey \"average\" :yName " (pr-str (str "Average " yl)) "}]}")))
+            (str "{:title {:text " (pr-str (str "Average " yl " by " xl)) "}" sub "\n"
+                 "                :data data\n"
+                 "                :series [{:type \"bar\" :xKey " (pr-str xf) " :xName " (pr-str xl)
+                 "\n                          :yKey \"average\" :yName " (pr-str (str "Average " yl)) "}]}")))
 
       :scatter
       (str ";; The rows that have both a " xl " and a " yl "\n"
-           "(def chart-data\n"
+           "(defn chart-data [rows]\n"
            "  (filterv #(and (number? (:" xf " %)) (number? (:" yf " %))) rows))\n"
            "\n"
            (chart-component
-            (str "{:title {:text " (pr-str (str yl " against " xl)) "}\n"
-                 "              :data chart-data\n"
-                 "              :series [{:type \"scatter\" :xKey " (pr-str xf) " :xName " (pr-str xl)
-                 "\n                        :yKey " (pr-str yf) " :yName " (pr-str yl) "}]\n"
-                 "              :axes {:x {:type \"number\" :title {:text " (pr-str xl) "}}\n"
-                 "                     :y {:type \"number\" :title {:text " (pr-str yl) "}}}}")))
+            (str "{:title {:text " (pr-str (str yl " against " xl)) "}" sub "\n"
+                 "                :data data\n"
+                 "                :series [{:type \"scatter\" :xKey " (pr-str xf) " :xName " (pr-str xl)
+                 "\n                          :yKey " (pr-str yf) " :yName " (pr-str yl) "}]\n"
+                 "                :axes {:x {:type \"number\" :title {:text " (pr-str xl) "}}\n"
+                 "                       :y {:type \"number\" :title {:text " (pr-str yl) "}}}}")))
 
       :over-time
       (str ";; The average " yl " for each day of " xl ", in date order:\n"
            ";;   ({:date #inst \"...\" :average 12.5} ...)\n"
            ";; (subs ... 0 10) is the day part of the date, like \"2026-06-01\". A time\n"
            ";; axis needs real dates, so js/Date. turns that text into one.\n"
-           "(def chart-data\n"
+           "(defn chart-data [rows]\n"
            "  (->> rows\n"
            "       (filter #(and (seq (:" xf " %)) (number? (:" yf " %))))\n"
            "       (group-by #(subs (:" xf " %) 0 10))\n"
@@ -252,28 +266,31 @@
            "                           (count day-rows))}))))\n"
            "\n"
            (chart-component
-            (str "{:title {:text " (pr-str (str "Average " yl " by " xl)) "}\n"
-                 "              :data chart-data\n"
-                 "              :series [{:type \"line\" :xKey \"date\" :xName " (pr-str xl)
-                 "\n                        :yKey \"average\" :yName " (pr-str (str "Average " yl)) "}]\n"
-                 "              :axes {:x {:type \"time\"} :y {:type \"number\"}}}"))))))
+            (str "{:title {:text " (pr-str (str "Average " yl " by " xl)) "}" sub "\n"
+                 "                :data data\n"
+                 "                :series [{:type \"line\" :xKey \"date\" :xName " (pr-str xl)
+                 "\n                          :yKey \"average\" :yName " (pr-str (str "Average " yl)) "}]\n"
+                 "                :axes {:x {:type \"time\"} :y {:type \"number\"}}}"))))))
 
 (defn chart-section
   "The code for the chart part of my_data.cljs: `chart-type` (one of
-  chart-types) of the columns `x` and `y`, or no chart if it's nil."
-  [chart-type x y]
-  (str chart-start
+  chart-types) of the columns `x` and `y`, or no chart if it's nil. The
+  chart draws `source` (see chart-component): \"@shown\", unless the code
+  is from before there was a `shown`."
+  ([chart-type x y] (chart-section chart-type x y "@shown"))
+  ([chart-type x y source]
+   (str chart-start
        "\n"
        (if chart-type
-         (str (chart-body chart-type x y)
+         (str (chart-body chart-type x y source)
               "\n"
               ";; Ideas: change \"bar\" to \"line\", add :fill \"#004a87\" to a series,\n"
-              ";; or look at chart-data at the REPL. More in AG Charts' documentation:\n"
-              ";; https://www.ag-grid.com/charts/react/quick-start/\n")
+              ";; or look at (chart-data " source ") at the REPL. More in AG Charts'\n"
+              ";; documentation: https://www.ag-grid.com/charts/react/quick-start/\n")
          (str ";; No chart yet: choose one above the table and press \"Make chart\".\n"
               "(def chart nil)\n"))
        "\n"
-       chart-end))
+       chart-end)))
 
 (defn- with-chart-section
   "`code` with its chart part replaced by `section` (or, if it hasn't got
@@ -387,10 +404,29 @@
      "       get-selected-rows\n"
      "       (reset! selected)))\n"
      "\n"
+     ";; The rows that pass the table's filters (all of them, to start with),\n"
+     ";; in the table's order. The chart (part 4) draws these.\n"
+     "(def shown (r/atom rows))\n"
+     "\n"
+     "(defn get-shown-rows\n"
+     "  \"The rows that pass the table's filters, from one of AG Grid's events,\n"
+     "  as maps. They include any edits made in the table.\"\n"
+     "  [event]\n"
+     "  (let [result #js []]\n"
+     "    (.forEachNodeAfterFilterAndSort (.-api event) #(.push result (.-data %)))\n"
+     "    (mapv #(js->clj % :keywordize-keys true) result)))\n"
+     "\n"
+     "(defn on-filter-changed\n"
+     "  \"AG Grid calls this whenever the filters change (and after an edit).\"\n"
+     "  [event]\n"
+     "  (->> event\n"
+     "       get-shown-rows\n"
+     "       (reset! shown)))\n"
+     "\n"
      "(defn table\n"
      "  \"The AG Grid table. It's a component of its own that doesn't read\n"
-     "  `selected`, so ticking a row doesn't redraw it (which would clear the\n"
-     "  ticks).\"\n"
+     "  `selected` or `shown`, so ticking or filtering doesn't redraw it\n"
+     "  (which would clear the ticks).\"\n"
      "  []\n"
      "  [:> AgGridReact\n"
      "   {:rowData rows\n"
@@ -414,12 +450,17 @@
      "    ;; whenever the ticks change. (Written #(...) rather than just\n"
      "    ;; on-selection-changed, so that if you change the function and\n"
      "    ;; evaluate it with Alt+Enter, the table uses the new one straight away.)\n"
-     "    :onSelectionChanged #(on-selection-changed %)}])\n"
+     "    :onSelectionChanged #(on-selection-changed %)\n"
+     "    ;; whenever the filters change, and after an edit, so the chart\n"
+     "    ;; shows it\n"
+     "    :onFilterChanged #(on-filter-changed %)\n"
+     "    :onCellValueChanged #(on-filter-changed %)}])\n"
      "\n"
      "(defn page []\n"
      "  [:div {:style {:height \"100%\" :display \"flex\" :flex-direction \"column\"}}\n"
      "   [:div {:style {:padding \"8px 12px\" :font-size \"14px\" :color \"#57606a\"}}\n"
      "    (count rows) \" rows from \" (data/file-name)\n"
+     "    \" - \" (count @shown) \" shown\"\n"
      "    \" - \" (count @selected) \" selected\"]\n"
      "   [:div {:style {:flex \"1 1 0\" :min-height \"150px\"}}\n"
      "    [table]]])\n"
@@ -442,6 +483,9 @@
      "  ;; Tick some rows in the table, then:\n"
      "  @selected\n"
      "  (map :" (second (first columns)) " @selected)\n"
+     "\n"
+     "  ;; Filter the table (the boxes under the column titles), then:\n"
+     "  (count @shown)\n"
      "\n"
      "  ;; Change what ticking does - evaluate this, then tick some rows, and\n"
      "  ;; watch the tap panel (bottom right). Load the file (Ctrl+S) to go back.\n"
@@ -679,8 +723,10 @@
       (.dispatch view #js {:effects (.scrollIntoView EditorView i #js {:y "start"})}))))
 
 (defn- write-chart! [chart-type x y]
-  (let [code (workspace/current-file-text workspace 0)]
-    (workspace/replace-text! workspace 0 (with-chart-section code (chart-section chart-type x y)))
+  (let [code (workspace/current-file-text workspace 0)
+        ;; code written before there was a `shown`: chart all the rows
+        source (if (re-find #"\(def shown " code) "@shown" "rows")]
+    (workspace/replace-text! workspace 0 (with-chart-section code (chart-section chart-type x y source)))
     (show-chart-code!)))
 
 (def ^:private select-style
