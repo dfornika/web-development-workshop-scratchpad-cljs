@@ -13,6 +13,7 @@
     4. The workspace (the same one the in-browser Playground uses) runs
        that code with SCI, and shows its `page` on the right."
   (:require ["@codemirror/view" :refer [EditorView]]
+            ["ag-grid-community" :refer [getGridApi]]
             [clojure.string :as str]
             [reagent.core :as r]
             [scratchpad.components :as c]
@@ -146,6 +147,8 @@
    {:id :scatter :label "Scatter: number against number"
     :x {:label "across" :kinds #{:number}}
     :y {:label "up" :kinds #{:number}}}
+   {:id :count-over-time :label "Over time: rows per date"
+    :x {:label "by" :kinds #{:date}}}
    {:id :over-time :label "Over time: daily average"
     :y {:label "average of" :kinds #{:number}}
     :x {:label "by" :kinds #{:date}}}])
@@ -160,23 +163,37 @@
   ";; ============================ end of the chart ============================\n")
 
 (defn- chart-component
-  "The code for a `chart` component drawing `options` (code for a map)."
-  [options]
-  (str "(defn chart []\n"
-       "  [:> AgCharts\n"
-       "   {:style {:height \"100%\"}\n"
-       "    :options " options "}])\n"))
+  "The code for a `chart` component drawing `options` (code for a map,
+  which uses `data`). `source` is the code for the rows it draws: \"@shown\"
+  (the rows that pass the table's filters) or \"rows\" (all of them)."
+  [source options]
+  (str (if (= source "@shown")
+         (str ";; It draws the rows in `shown` - the ones that pass the table's\n"
+              ";; filters - so filter the table, and the chart follows.\n")
+         (str ";; It draws all the rows. (Press \"Reset to original\" for newer code,\n"
+              ";; where the chart follows the table's filters.)\n"))
+       "(defn chart []\n"
+       "  (let [data (chart-data " source ")]\n"
+       "    [:> AgCharts\n"
+       "     {:style {:height \"100%\"}\n"
+       "      :options " options "}]))\n"))
+
+(defn- subtitle [source]
+  (when (= source "@shown")
+    (str "\n                :subtitle {:text (str (count @shown) \" of \" (count rows) \" rows\")}")))
 
 (defn- chart-body
   "The code for one kind of chart. `x` and `y` are {:field \"sampleId\"
   :label \"sample_id\"}."
-  [{:keys [id]} x y]
-  (let [xf (:field x) xl (:label x) yf (:field y) yl (:label y)]
+  [{:keys [id]} x y source]
+  (let [xf (:field x) xl (:label x) yf (:field y) yl (:label y)
+        chart-component (partial chart-component source)
+        sub (subtitle source)]
     (case id
       (:count-bar :count-pie)
       (str ";; How many rows have each " xl ", most common first:\n"
            ";;   ({:" xf " \"...\" :count 12} ...)\n"
-           "(def chart-data\n"
+           "(defn chart-data [rows]\n"
            "  (->> rows\n"
            "       (map :" xf ")\n"
            "       (frequencies)\n"
@@ -184,30 +201,30 @@
            "       (sort-by :count >)))\n"
            "\n"
            (chart-component
-            (str "{:title {:text " (pr-str (str "Rows by " xl)) "}\n"
-                 "              :data chart-data\n"
-                 "              :series [" (if (= id :count-bar)
+            (str "{:title {:text " (pr-str (str "Rows by " xl)) "}" sub "\n"
+                 "                :data data\n"
+                 "                :series [" (if (= id :count-bar)
                                              (str "{:type \"bar\" :xKey " (pr-str xf) " :xName " (pr-str xl)
-                                                  "\n                        :yKey \"count\" :yName \"Rows\"}")
+                                                  "\n                          :yKey \"count\" :yName \"Rows\"}")
                                              (str "{:type \"pie\" :angleKey \"count\" :angleName \"Rows\""
-                                                  "\n                        :legendItemKey " (pr-str xf)
-                                                  "\n                        :calloutLabelKey " (pr-str xf) "}"))
+                                                  "\n                          :legendItemKey " (pr-str xf)
+                                                  "\n                          :calloutLabelKey " (pr-str xf) "}"))
                  "]}")))
 
       :histogram
       (str ";; The rows that have a " xl ". AG Charts sorts them into bins itself.\n"
-           "(def chart-data\n"
+           "(defn chart-data [rows]\n"
            "  (filterv (comp number? :" xf ") rows))\n"
            "\n"
            (chart-component
-            (str "{:title {:text " (pr-str (str "Spread of " xl)) "}\n"
-                 "              :data chart-data\n"
-                 "              :series [{:type \"histogram\" :xKey " (pr-str xf) " :xName " (pr-str xl) "}]}")))
+            (str "{:title {:text " (pr-str (str "Spread of " xl)) "}" sub "\n"
+                 "                :data data\n"
+                 "                :series [{:type \"histogram\" :xKey " (pr-str xf) " :xName " (pr-str xl) "}]}")))
 
       :average-bar
       (str ";; The average " yl " for each " xl ":\n"
            ";;   ({:" xf " \"...\" :average 12.5} ...)\n"
-           "(def chart-data\n"
+           "(defn chart-data [rows]\n"
            "  (->> rows\n"
            "       (filter (comp number? :" yf "))\n"
            "       (group-by :" xf ")\n"
@@ -218,30 +235,49 @@
            "       (sort-by :" xf ")))\n"
            "\n"
            (chart-component
-            (str "{:title {:text " (pr-str (str "Average " yl " by " xl)) "}\n"
-                 "              :data chart-data\n"
-                 "              :series [{:type \"bar\" :xKey " (pr-str xf) " :xName " (pr-str xl)
-                 "\n                        :yKey \"average\" :yName " (pr-str (str "Average " yl)) "}]}")))
+            (str "{:title {:text " (pr-str (str "Average " yl " by " xl)) "}" sub "\n"
+                 "                :data data\n"
+                 "                :series [{:type \"bar\" :xKey " (pr-str xf) " :xName " (pr-str xl)
+                 "\n                          :yKey \"average\" :yName " (pr-str (str "Average " yl)) "}]}")))
 
       :scatter
       (str ";; The rows that have both a " xl " and a " yl "\n"
-           "(def chart-data\n"
+           "(defn chart-data [rows]\n"
            "  (filterv #(and (number? (:" xf " %)) (number? (:" yf " %))) rows))\n"
            "\n"
            (chart-component
-            (str "{:title {:text " (pr-str (str yl " against " xl)) "}\n"
-                 "              :data chart-data\n"
-                 "              :series [{:type \"scatter\" :xKey " (pr-str xf) " :xName " (pr-str xl)
-                 "\n                        :yKey " (pr-str yf) " :yName " (pr-str yl) "}]\n"
-                 "              :axes {:x {:type \"number\" :title {:text " (pr-str xl) "}}\n"
-                 "                     :y {:type \"number\" :title {:text " (pr-str yl) "}}}}")))
+            (str "{:title {:text " (pr-str (str yl " against " xl)) "}" sub "\n"
+                 "                :data data\n"
+                 "                :series [{:type \"scatter\" :xKey " (pr-str xf) " :xName " (pr-str xl)
+                 "\n                          :yKey " (pr-str yf) " :yName " (pr-str yl) "}]\n"
+                 "                :axes {:x {:type \"number\" :title {:text " (pr-str xl) "}}\n"
+                 "                       :y {:type \"number\" :title {:text " (pr-str yl) "}}}}")))
+
+      :count-over-time
+      (str ";; How many rows there are for each day of " xl ", in date order:\n"
+           ";;   ({:day \"2026-06-01\" :count 12} ...)\n"
+           ";; (subs ... 0 10) is the day part of the date, like \"2026-06-01\".\n"
+           "(defn chart-data [rows]\n"
+           "  (->> rows\n"
+           "       (map :" xf ")\n"
+           "       (filter seq)          ; leave out empty ones\n"
+           "       (map #(subs % 0 10))\n"
+           "       (frequencies)\n"
+           "       (sort-by first)\n"
+           "       (map (fn [[day n]] {:day day :count n}))))\n"
+           "\n"
+           (chart-component
+            (str "{:title {:text " (pr-str (str "Rows by " xl)) "}" sub "\n"
+                 "                :data data\n"
+                 "                :series [{:type \"bar\" :xKey \"day\" :xName " (pr-str xl)
+                 "\n                          :yKey \"count\" :yName \"Rows\"}]}")))
 
       :over-time
       (str ";; The average " yl " for each day of " xl ", in date order:\n"
            ";;   ({:date #inst \"...\" :average 12.5} ...)\n"
            ";; (subs ... 0 10) is the day part of the date, like \"2026-06-01\". A time\n"
            ";; axis needs real dates, so js/Date. turns that text into one.\n"
-           "(def chart-data\n"
+           "(defn chart-data [rows]\n"
            "  (->> rows\n"
            "       (filter #(and (seq (:" xf " %)) (number? (:" yf " %))))\n"
            "       (group-by #(subs (:" xf " %) 0 10))\n"
@@ -252,28 +288,31 @@
            "                           (count day-rows))}))))\n"
            "\n"
            (chart-component
-            (str "{:title {:text " (pr-str (str "Average " yl " by " xl)) "}\n"
-                 "              :data chart-data\n"
-                 "              :series [{:type \"line\" :xKey \"date\" :xName " (pr-str xl)
-                 "\n                        :yKey \"average\" :yName " (pr-str (str "Average " yl)) "}]\n"
-                 "              :axes {:x {:type \"time\"} :y {:type \"number\"}}}"))))))
+            (str "{:title {:text " (pr-str (str "Average " yl " by " xl)) "}" sub "\n"
+                 "                :data data\n"
+                 "                :series [{:type \"line\" :xKey \"date\" :xName " (pr-str xl)
+                 "\n                          :yKey \"average\" :yName " (pr-str (str "Average " yl)) "}]\n"
+                 "                :axes {:x {:type \"time\"} :y {:type \"number\"}}}"))))))
 
 (defn chart-section
   "The code for the chart part of my_data.cljs: `chart-type` (one of
-  chart-types) of the columns `x` and `y`, or no chart if it's nil."
-  [chart-type x y]
-  (str chart-start
+  chart-types) of the columns `x` and `y`, or no chart if it's nil. The
+  chart draws `source` (see chart-component): \"@shown\", unless the code
+  is from before there was a `shown`."
+  ([chart-type x y] (chart-section chart-type x y "@shown"))
+  ([chart-type x y source]
+   (str chart-start
        "\n"
        (if chart-type
-         (str (chart-body chart-type x y)
+         (str (chart-body chart-type x y source)
               "\n"
               ";; Ideas: change \"bar\" to \"line\", add :fill \"#004a87\" to a series,\n"
-              ";; or look at chart-data at the REPL. More in AG Charts' documentation:\n"
-              ";; https://www.ag-grid.com/charts/react/quick-start/\n")
+              ";; or look at (chart-data " source ") at the REPL. More in AG Charts'\n"
+              ";; documentation: https://www.ag-grid.com/charts/react/quick-start/\n")
          (str ";; No chart yet: choose one above the table and press \"Make chart\".\n"
               "(def chart nil)\n"))
        "\n"
-       chart-end))
+       chart-end)))
 
 (defn- with-chart-section
   "`code` with its chart part replaced by `section` (or, if it hasn't got
@@ -387,13 +426,39 @@
      "       get-selected-rows\n"
      "       (reset! selected)))\n"
      "\n"
+     ";; The rows that have come in so far: all of them - unless you press\n"
+     ";; Replay above the table, which brings them in a batch at a time, the\n"
+     ";; way new results arrive week by week.\n"
+     "(def arrived (r/atom rows))\n"
+     "\n"
+     ";; The rows that pass the table's filters, in the table's order. The\n"
+     ";; chart (part 4) draws these.\n"
+     "(def shown (r/atom rows))\n"
+     "\n"
+     "(defn get-shown-rows\n"
+     "  \"The rows that pass the table's filters, from one of AG Grid's events,\n"
+     "  as maps. They include any edits made in the table.\"\n"
+     "  [event]\n"
+     "  (let [result #js []]\n"
+     "    (.forEachNodeAfterFilterAndSort (.-api event) #(.push result (.-data %)))\n"
+     "    (mapv #(js->clj % :keywordize-keys true) result)))\n"
+     "\n"
+     "(defn on-rows-changed\n"
+     "  \"AG Grid calls this whenever the rows it shows change: when you filter\n"
+     "  or sort, when new rows arrive, and after an edit.\"\n"
+     "  [event]\n"
+     "  (->> event\n"
+     "       get-shown-rows\n"
+     "       (reset! shown)))\n"
+     "\n"
      "(defn table\n"
      "  \"The AG Grid table. It's a component of its own that doesn't read\n"
-     "  `selected`, so ticking a row doesn't redraw it (which would clear the\n"
-     "  ticks).\"\n"
+     "  `selected` or `shown`, so ticking or filtering doesn't redraw it\n"
+     "  (which would clear the ticks). It does read `arrived`, so it's\n"
+     "  redrawn when new rows come in.\"\n"
      "  []\n"
      "  [:> AgGridReact\n"
-     "   {:rowData rows\n"
+     "   {:rowData @arrived\n"
      "    :columnDefs columns\n"
      "    ;; a compact look that fits more rows on screen (the default is\n"
      "    ;; themeQuartz; there's also themeAlpine and themeMaterial)\n"
@@ -414,12 +479,17 @@
      "    ;; whenever the ticks change. (Written #(...) rather than just\n"
      "    ;; on-selection-changed, so that if you change the function and\n"
      "    ;; evaluate it with Alt+Enter, the table uses the new one straight away.)\n"
-     "    :onSelectionChanged #(on-selection-changed %)}])\n"
+     "    :onSelectionChanged #(on-selection-changed %)\n"
+     "    ;; whenever the rows it shows change, and after an edit - so the\n"
+     "    ;; chart can follow\n"
+     "    :onModelUpdated #(on-rows-changed %)\n"
+     "    :onCellValueChanged #(on-rows-changed %)}])\n"
      "\n"
      "(defn page []\n"
      "  [:div {:style {:height \"100%\" :display \"flex\" :flex-direction \"column\"}}\n"
      "   [:div {:style {:padding \"8px 12px\" :font-size \"14px\" :color \"#57606a\"}}\n"
-     "    (count rows) \" rows from \" (data/file-name)\n"
+     "    (count @arrived) \" rows from \" (data/file-name)\n"
+     "    \" - \" (count @shown) \" shown\"\n"
      "    \" - \" (count @selected) \" selected\"]\n"
      "   [:div {:style {:flex \"1 1 0\" :min-height \"150px\"}}\n"
      "    [table]]])\n"
@@ -442,6 +512,15 @@
      "  ;; Tick some rows in the table, then:\n"
      "  @selected\n"
      "  (map :" (second (first columns)) " @selected)\n"
+     "\n"
+     "  ;; Filter the table (the boxes under the column titles), then:\n"
+     "  (count @shown)\n"
+     "\n"
+     "  ;; Bring the rows in yourself - the Replay bar does the same, a batch\n"
+     "  ;; at a time:\n"
+     "  (reset! arrived (take 50 rows))\n"
+     "  (swap! arrived concat (take 50 (drop 50 rows)))\n"
+     "  (reset! arrived rows)\n"
      "\n"
      "  ;; Change what ticking does - evaluate this, then tick some rows, and\n"
      "  ;; watch the tap panel (bottom right). Load the file (Ctrl+S) to go back.\n"
@@ -679,8 +758,10 @@
       (.dispatch view #js {:effects (.scrollIntoView EditorView i #js {:y "start"})}))))
 
 (defn- write-chart! [chart-type x y]
-  (let [code (workspace/current-file-text workspace 0)]
-    (workspace/replace-text! workspace 0 (with-chart-section code (chart-section chart-type x y)))
+  (let [code (workspace/current-file-text workspace 0)
+        ;; code written before there was a `shown`: chart all the rows
+        source (if (re-find #"\(def shown " code) "@shown" "rows")]
+    (workspace/replace-text! workspace 0 (with-chart-section code (chart-section chart-type x y source)))
     (show-chart-code!)))
 
 (def ^:private select-style
@@ -723,6 +804,170 @@
                   :style {:padding "3px 10px" :font-size "13px"}
                   :on-click #(write-chart! nil nil nil)}
         "Remove chart"])]))
+
+;; ---------------------------------------------------------------------------
+;; Replay: bring the rows in a batch at a time
+;;
+;; The code's `arrived` atom holds the rows the table shows. Replay puts
+;; them back a batch at a time - in the table's current order, either a
+;; number of rows at a time or one value of a column (like a run ID) at a
+;; time - so you can watch the chart change as results come in.
+;; ---------------------------------------------------------------------------
+
+;; {:batches [[row ...] ...] :step 2 :playing? true :render-count 3}
+;; :batches is worked out when Play is first pressed; :render-count is
+;; the code it was for - after loading the code again, it starts over.
+(defonce ^:private replay (r/atom {}))
+(defonce ^:private replay-options (r/atom {:by "" :size 20 :ms 1000}))
+(defonce ^:private timer (atom nil))
+(defonce ^:private preview-ref (atom nil))
+
+(defn- grid-api
+  "The AG Grid table's API, from the page."
+  []
+  (some-> ^js @preview-ref (.querySelector "[grid-id]") .-parentElement getGridApi))
+
+(defn- compare-values [a b]
+  (cond
+    (= a b) 0
+    (nil? a) 1                        ; empty ones last
+    (nil? b) -1
+    (= (type a) (type b)) (compare a b)
+    :else (compare (str a) (str b))))
+
+(defn- table-order
+  "`rows` in the order the table sorts them (or as they are, if it isn't
+  sorted). Filters are left out on purpose: they still apply as rows come in."
+  [rows]
+  (let [sorts (some->> (some-> ^js (grid-api) .getColumnState)
+                       (filter #(.-sort ^js %))
+                       (sort-by #(.-sortIndex ^js %))
+                       (map (fn [^js c] [(keyword (.-colId c)) (.-sort c)])))]
+    (if (seq sorts)
+      (sort (fn [a b]
+              (or (some (fn [[k direction]]
+                          (let [c (compare-values (get a k) (get b k))]
+                            (when-not (zero? c) (if (= direction "desc") (- c) c))))
+                        sorts)
+                  0))
+            rows)
+      rows)))
+
+(defn- batches
+  "The rows in batches: `size` at a time, or one value of column `by` at a
+  time (in the order each value first comes up)."
+  [rows by size]
+  (if (str/blank? by)
+    (mapv vec (partition-all size rows))
+    (let [k (keyword by)
+          groups (group-by k rows)]
+      (mapv #(get groups %) (distinct (map k rows))))))
+
+(defn- arrived-atom []
+  (let [a (sci/resolve-var 'scratchpad.my-data/arrived)]
+    (when (satisfies? IReset a) a)))
+
+(defn- stop! []
+  (some-> @timer js/clearInterval)
+  (reset! timer nil)
+  (swap! replay assoc :playing? false))
+
+(defn- go-to-step!
+  "Shows the first `step` batches in the table."
+  [step]
+  (let [{bs :batches} @replay]
+    (when-let [a (and bs (arrived-atom))]
+      (let [step (max 0 (min step (count bs)))]
+        (swap! replay assoc :step step)
+        (reset! a (into [] cat (take step bs)))))))
+
+(defn- start!
+  "Works out the batches (if it's a new replay) and plays them: one value
+  of column `by` at a time, or (if it's \"\") a number of rows at a time."
+  [by]
+  (let [{:keys [size ms]} @replay-options
+        {bs :batches :keys [step]} @replay
+        rows (sci/resolve-var 'scratchpad.my-data/rows)
+        fresh? (or (nil? bs) (>= step (count bs)))]
+    (when (and (sequential? rows) (arrived-atom))
+      (when fresh?
+        (reset! replay {:batches (batches (table-order rows) by size)
+                        :step 0
+                        :render-count @sci/render-count})
+        (go-to-step! 1))
+      (some-> @timer js/clearInterval)
+      (swap! replay assoc :playing? true)
+      (reset! timer
+              (js/setInterval
+               (fn []
+                 (let [{bs :batches :keys [step]} @replay]
+                   (if (< step (count bs))
+                     (go-to-step! (inc step))
+                     (stop!))))
+               ms)))))
+
+(defn- finish!
+  "Ends the replay: every row is back."
+  []
+  (stop!)
+  (when-let [a (arrived-atom)]
+    (reset! a (sci/resolve-var 'scratchpad.my-data/rows)))
+  (reset! replay {}))
+
+(defn- replay-bar [info]
+  (let [{bs :batches :keys [step playing? render-count]} @replay
+        {:keys [by size ms]} @replay-options
+        ;; a column from another file, that this one hasn't got
+        by (if (some #(= by (:field %)) info) by "")
+        n @sci/render-count]
+    ;; the code was loaded again: its `arrived` is new, so start over
+    (when (and bs (not= render-count n))
+      (js/setTimeout finish! 0))
+    (if-not (arrived-atom)
+      [:div {:style {:padding "4px 8px" :font-size "12px" :color "#57606a"
+                     :border-bottom "1px solid #d0d7de" :background-color "#f6f8fa"}}
+       "⏯ Replay needs newer code: press \"Reset to original\" to get it."]
+      (let [active? (some? bs)
+            batch-label (when (and active? (pos? step))
+                          (let [b (nth bs (dec step))]
+                            (if (str/blank? by)
+                              (str (count b) " rows")
+                              (str (get (first b) (keyword by)) " (" (count b) " rows)"))))]
+        [:div {:style {:display "flex" :flex-wrap "wrap" :align-items "center" :gap "6px"
+                       :padding "6px 8px" :font-size "13px" :color "#57606a"
+                       :border-bottom "1px solid #d0d7de" :background-color "#f6f8fa"}}
+         [:span {:title (str "Bring the rows in a batch at a time, in the table's order "
+                             "(sort it first, if you like), and watch the chart change")}
+          "⏯ Replay, a batch per"]
+         [:select {:value ms :style select-style :disabled active?
+                   :on-change #(swap! replay-options assoc :ms (js/parseInt (.. % -target -value)))}
+          [:option {:value 500} "½ second"]
+          [:option {:value 1000} "second"]
+          [:option {:value 2000} "2 seconds"]]
+         [:span "of"]
+         [:select {:value by :style select-style :disabled active?
+                   :on-change #(swap! replay-options assoc :by (.. % -target -value))}
+          [:option {:value ""} (str size " rows")]
+          (for [{:keys [field label]} info]
+            ^{:key field} [:option {:value field} (str "each " label)])]
+         (if playing?
+           [c/button {:style {:padding "3px 10px" :font-size "13px"} :on-click stop!} "⏸ Pause"]
+           [c/button {:style {:padding "3px 10px" :font-size "13px"} :on-click #(start! by)}
+            (if (and active? (< step (count bs))) "▶ Play" (if active? "↺ Again" "▶ Play"))])
+         (when active?
+           [:<>
+            [:input {:type "range" :min 0 :max (count bs) :value step
+                     :title "Drag to go to any batch"
+                     :on-change (fn [e]
+                                  (stop!)
+                                  (go-to-step! (js/parseInt (.. e -target -value))))
+                     :style {:flex "1 1 120px" :min-width "100px"}}]
+            [:span {:style {:white-space "nowrap"}}
+             "batch " step " of " (count bs)
+             (when batch-label [:<> ": " [:strong {:style {:color "#24292f"}} batch-label]])]
+            [c/button {:variant :secondary :style {:padding "3px 10px" :font-size "13px"}
+                       :on-click finish!}
+             "Show all rows"]])]))))
 
 ;; ---------------------------------------------------------------------------
 ;; The chart above the table, with a divider between them
@@ -791,9 +1036,13 @@
         chart (sci/resolve-var 'scratchpad.my-data/chart)
         rows (sci/resolve-var 'scratchpad.my-data/rows)
         columns (sci/resolve-var 'scratchpad.my-data/columns)]
-    [:div {:style {:height "100%" :display "flex" :flex-direction "column"}}
+    [:div {:ref #(reset! preview-ref %)
+           :style {:height "100%" :display "flex" :flex-direction "column"}}
      (when (sequential? rows)
        [chart-builder rows (when (sequential? columns) columns) (fn? chart)])
+     (when (sequential? rows)
+       [replay-bar (filter #(some #{:category :date} (:kinds %))
+                           (columns-info rows (when (sequential? columns) columns)))])
      [chart-and-table
       ;; Fresh ones each time the code is loaded (keyed by n): AG Grid and
       ;; AG Charts only apply some options when they're first made.
