@@ -139,6 +139,9 @@
     :x {:label "of" :kinds #{:category}}}
    {:id :count-pie :label "Pie: share of each value"
     :x {:label "of" :kinds #{:category}}}
+   {:id :share-stacked :label "Stacked: share of each value"
+    :y {:label "share of" :kinds #{:category}}
+    :x {:label "per" :kinds #{:category :date}}}
    {:id :histogram :label "Histogram: spread of a number"
     :x {:label "of" :kinds #{:number}}}
    {:id :average-bar :label "Bar: average per group"
@@ -210,6 +213,54 @@
                                                   "\n                          :legendItemKey " (pr-str xf)
                                                   "\n                          :calloutLabelKey " (pr-str xf) "}"))
                  "]}")))
+
+      :share-stacked
+      (let [date? (contains? (:kinds x) :date)
+            group (if date?
+                    (str "#(subs (:" xf " %) 0 10)")
+                    (str "(comp str :" xf ")"))]
+        (str ";; One bar for each " xl ", split into a piece for each " yl ":\n"
+             ";;   ({:group \"...\" \"value0\" 5 \"value1\" 3 ...} ...)\n"
+             ";; Rows with an empty " xl " or " yl " are left out.\n"
+             (when date?
+               ";; (subs ... 0 10) is the day part of the date, like \"2026-06-01\".\n")
+             "\n"
+             ";; Every " yl ", in order - one piece of each bar. Worked out from all\n"
+             ";; the rows, so each keeps its place and color when you filter.\n"
+             "(def stack-values\n"
+             "  (->> rows\n"
+             "       (map (comp str :" yf "))\n"
+             "       (filter seq)\n"
+             "       (distinct)\n"
+             "       (sort)))\n"
+             "\n"
+             ";; AG Charts reads a dot in a key as \"look inside\", so a value like\n"
+             ";; \"KP.2\" can't be a key. Each value gets a plain one instead:\n"
+             ";;   {\"JN.1\" \"value0\", \"KP.2\" \"value1\", ...}\n"
+             "(def stack-keys\n"
+             "  (zipmap stack-values (map #(str \"value\" %) (range))))\n"
+             "\n"
+             "(defn chart-data [rows]\n"
+             "  (->> rows\n"
+             "       (filter #(and (seq (str (:" xf " %))) (seq (str (:" yf " %)))))\n"
+             "       (group-by " group ")\n"
+             "       (sort-by first)\n"
+             "       (map (fn [[group group-rows]]\n"
+             "              ;; 0 for every value, then the counts of the ones there are\n"
+             "              (merge {:group group}\n"
+             "                     (zipmap (vals stack-keys) (repeat 0))\n"
+             "                     (frequencies (map (comp stack-keys str :" yf ") group-rows)))))))\n"
+             "\n"
+             (chart-component
+              (str "{:title {:text " (pr-str (str "Share of each " yl " per " xl)) "}" sub "\n"
+                   "                :data data\n"
+                   "                ;; a series for each " yl ", stacked into one bar per " xl ".\n"
+                   "                ;; :normalizedTo 100 makes each bar add up to 100% - take\n"
+                   "                ;; it out to show how many rows instead.\n"
+                   "                :series (for [v stack-values]\n"
+                   "                          {:type \"bar\" :xKey \"group\" :xName " (pr-str xl) "\n"
+                   "                           :yKey (stack-keys v) :yName v\n"
+                   "                           :stacked true :normalizedTo 100})}"))))
 
       :histogram
       (str ";; The rows that have a " xl ". AG Charts sorts them into bins itself.\n"
@@ -730,7 +781,7 @@
     (filter #(some kinds (:kinds %)) info)))
 
 (defn- slots [chart-type]
-  (if (#{:average-bar :over-time} (:id chart-type)) [:y :x] [:x :y]))
+  (if (#{:average-bar :over-time :share-stacked} (:id chart-type)) [:y :x] [:x :y]))
 
 (defonce ^:private choice (r/atom {:type :count-bar}))
 
