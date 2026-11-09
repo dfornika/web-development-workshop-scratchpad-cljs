@@ -134,7 +134,8 @@
 
 (def chart-types
   "The charts the \"Make chart\" button can write. Each needs one or two
-  columns (:x, and maybe :y) of the kinds listed."
+  columns (:x, and maybe :y) of the kinds listed. Some can also color by
+  a column (:color), if one is chosen."
   [{:id :count-bar :label "Bar: count of each value"
     :x {:label "of" :kinds #{:category}}}
    {:id :count-pie :label "Pie: share of each value"
@@ -149,9 +150,11 @@
     :x {:label "for each" :kinds #{:category}}}
    {:id :scatter :label "Scatter: number against number"
     :x {:label "across" :kinds #{:number}}
-    :y {:label "up" :kinds #{:number}}}
+    :y {:label "up" :kinds #{:number}}
+    :color {:label "colored by" :kinds #{:category}}}
    {:id :count-over-time :label "Over time: rows per date"
-    :x {:label "by" :kinds #{:date}}}
+    :x {:label "by" :kinds #{:date}}
+    :color {:label "colored by" :kinds #{:category}}}
    {:id :over-time :label "Over time: daily average"
     :y {:label "average of" :kinds #{:number}}
     :x {:label "by" :kinds #{:date}}}])
@@ -185,11 +188,32 @@
   (when (= source "@shown")
     (str "\n                :subtitle {:text (str (count @shown) \" of \" (count rows) \" rows\")}")))
 
+(defn- stack-defs
+  "The code for `stack-values` (every value of column `field`) and
+  `stack-keys` (a key for each one), used by the charts that have a
+  series - a piece of each bar, or a color - for each value."
+  [field label what]
+  (str ";; Every " label ", in order - " what ". Worked out from all\n"
+       ";; the rows, so each keeps its place and color when you filter.\n"
+       "(def stack-values\n"
+       "  (->> rows\n"
+       "       (map (comp str :" field "))\n"
+       "       (filter seq)\n"
+       "       (distinct)\n"
+       "       (sort)))\n"
+       "\n"
+       ";; AG Charts reads a dot in a key as \"look inside\", so a value like\n"
+       ";; \"KP.2\" can't be a key. Each value gets a plain one instead:\n"
+       ";;   {\"JN.1\" \"value0\", \"KP.2\" \"value1\", ...}\n"
+       "(def stack-keys\n"
+       "  (zipmap stack-values (map #(str \"value\" %) (range))))\n"))
+
 (defn- chart-body
-  "The code for one kind of chart. `x` and `y` are {:field \"sampleId\"
-  :label \"sample_id\"}."
-  [{:keys [id]} x y source]
+  "The code for one kind of chart. `x`, `y` and `color` are {:field
+  \"sampleId\" :label \"sample_id\"} (or nil, if not used)."
+  [{:keys [id]} x y color source]
   (let [xf (:field x) xl (:label x) yf (:field y) yl (:label y)
+        cf (:field color) cl (:label color)
         chart-component (partial chart-component source)
         sub (subtitle source)]
     (case id
@@ -225,20 +249,7 @@
              (when date?
                ";; (subs ... 0 10) is the day part of the date, like \"2026-06-01\".\n")
              "\n"
-             ";; Every " yl ", in order - one piece of each bar. Worked out from all\n"
-             ";; the rows, so each keeps its place and color when you filter.\n"
-             "(def stack-values\n"
-             "  (->> rows\n"
-             "       (map (comp str :" yf "))\n"
-             "       (filter seq)\n"
-             "       (distinct)\n"
-             "       (sort)))\n"
-             "\n"
-             ";; AG Charts reads a dot in a key as \"look inside\", so a value like\n"
-             ";; \"KP.2\" can't be a key. Each value gets a plain one instead:\n"
-             ";;   {\"JN.1\" \"value0\", \"KP.2\" \"value1\", ...}\n"
-             "(def stack-keys\n"
-             "  (zipmap stack-values (map #(str \"value\" %) (range))))\n"
+             (stack-defs yf yl "one piece of each bar")
              "\n"
              "(defn chart-data [rows]\n"
              "  (->> rows\n"
@@ -292,6 +303,24 @@
                  "\n                          :yKey \"average\" :yName " (pr-str (str "Average " yl)) "}]}")))
 
       :scatter
+      (if color
+        (str ";; The rows that have both a " xl " and a " yl "\n"
+             "(defn chart-data [rows]\n"
+             "  (filterv #(and (number? (:" xf " %)) (number? (:" yf " %))) rows))\n"
+             "\n"
+             (stack-defs cf cl "a series, in its own color, for each")
+             "\n"
+             (chart-component
+              (str "{:title {:text " (pr-str (str yl " against " xl ", by " cl)) "}" sub "\n"
+                   "                ;; a series for each " cl ", with just its own rows.\n"
+                   "                ;; Rows with an empty " cl " are left out.\n"
+                   "                :series (for [v stack-values]\n"
+                   "                          {:type \"scatter\" :title v\n"
+                   "                           :data (filter #(= v (str (:" cf " %))) data)\n"
+                   "                           :xKey " (pr-str xf) " :xName " (pr-str xl) "\n"
+                   "                           :yKey " (pr-str yf) " :yName " (pr-str yl) "})\n"
+                   "                :axes {:x {:type \"number\" :title {:text " (pr-str xl) "}}\n"
+                   "                       :y {:type \"number\" :title {:text " (pr-str yl) "}}}}")))
       (str ";; The rows that have both a " xl " and a " yl "\n"
            "(defn chart-data [rows]\n"
            "  (filterv #(and (number? (:" xf " %)) (number? (:" yf " %))) rows))\n"
@@ -302,9 +331,37 @@
                  "                :series [{:type \"scatter\" :xKey " (pr-str xf) " :xName " (pr-str xl)
                  "\n                          :yKey " (pr-str yf) " :yName " (pr-str yl) "}]\n"
                  "                :axes {:x {:type \"number\" :title {:text " (pr-str xl) "}}\n"
-                 "                       :y {:type \"number\" :title {:text " (pr-str yl) "}}}}")))
+                 "                       :y {:type \"number\" :title {:text " (pr-str yl) "}}}}"))))
 
       :count-over-time
+      (if color
+        (str ";; How many rows there are for each day of " xl ", in date order,\n"
+             ";; split by " cl ":\n"
+             ";;   ({:day \"2026-06-01\" \"value0\" 5 \"value1\" 3 ...} ...)\n"
+             ";; (subs ... 0 10) is the day part of the date, like \"2026-06-01\".\n"
+             ";; Rows with an empty " xl " or " cl " are left out.\n"
+             "\n"
+             (stack-defs cf cl "one piece of each bar")
+             "\n"
+             "(defn chart-data [rows]\n"
+             "  (->> rows\n"
+             "       (filter #(and (seq (str (:" xf " %))) (seq (str (:" cf " %)))))\n"
+             "       (group-by #(subs (:" xf " %) 0 10))\n"
+             "       (sort-by first)\n"
+             "       (map (fn [[day day-rows]]\n"
+             "              ;; 0 for every value, then the counts of the ones there are\n"
+             "              (merge {:day day}\n"
+             "                     (zipmap (vals stack-keys) (repeat 0))\n"
+             "                     (frequencies (map (comp stack-keys str :" cf ") day-rows)))))))\n"
+             "\n"
+             (chart-component
+              (str "{:title {:text " (pr-str (str "Rows by " xl ", by " cl)) "}" sub "\n"
+                   "                :data data\n"
+                   "                ;; a series for each " cl ", stacked into one bar per day.\n"
+                   "                ;; Add :normalizedTo 100 to each to show shares instead.\n"
+                   "                :series (for [v stack-values]\n"
+                   "                          {:type \"bar\" :xKey \"day\" :xName " (pr-str xl) "\n"
+                   "                           :yKey (stack-keys v) :yName v :stacked true})}")))
       (str ";; How many rows there are for each day of " xl ", in date order:\n"
            ";;   ({:day \"2026-06-01\" :count 12} ...)\n"
            ";; (subs ... 0 10) is the day part of the date, like \"2026-06-01\".\n"
@@ -321,7 +378,7 @@
             (str "{:title {:text " (pr-str (str "Rows by " xl)) "}" sub "\n"
                  "                :data data\n"
                  "                :series [{:type \"bar\" :xKey \"day\" :xName " (pr-str xl)
-                 "\n                          :yKey \"count\" :yName \"Rows\"}]}")))
+                 "\n                          :yKey \"count\" :yName \"Rows\"}]}"))))
 
       :over-time
       (str ";; The average " yl " for each day of " xl ", in date order:\n"
@@ -347,15 +404,17 @@
 
 (defn chart-section
   "The code for the chart part of my_data.cljs: `chart-type` (one of
-  chart-types) of the columns `x` and `y`, or no chart if it's nil. The
-  chart draws `source` (see chart-component): \"@shown\", unless the code
-  is from before there was a `shown`."
-  ([chart-type x y] (chart-section chart-type x y "@shown"))
-  ([chart-type x y source]
+  chart-types) of the columns `x` and `y` (and `color`, if it's not nil),
+  or no chart if `chart-type` is nil. The chart draws `source` (see
+  chart-component): \"@shown\", unless the code is from before there was
+  a `shown`."
+  ([chart-type x y] (chart-section chart-type x y nil "@shown"))
+  ([chart-type x y color] (chart-section chart-type x y color "@shown"))
+  ([chart-type x y color source]
    (str chart-start
         "\n"
         (if chart-type
-          (str (chart-body chart-type x y source)
+          (str (chart-body chart-type x y color source)
                "\n"
                ";; Ideas: change \"bar\" to \"line\", add :fill \"#004a87\" to a series,\n"
                ";; or look at (chart-data " source ") at the REPL. More in AG Charts'\n"
@@ -781,7 +840,7 @@
     (filter #(some kinds (:kinds %)) info)))
 
 (defn- slots [chart-type]
-  (if (#{:average-bar :over-time :share-stacked} (:id chart-type)) [:y :x] [:x :y]))
+  (if (#{:average-bar :over-time :share-stacked} (:id chart-type)) [:y :x :color] [:x :y :color]))
 
 (defonce ^:private choice (r/atom {:type :count-bar}))
 
@@ -797,8 +856,12 @@
                      (first (remove #(= avoid (:field %)) options))
                      (first options))))
         x (pick :x nil)
-        y (when (:y chart-type) (pick :y (:field x)))]
-    {:chart-type chart-type :x x :y y
+        y (when (:y chart-type) (pick :y (:field x)))
+        ;; optional: only if one's been chosen
+        color (when (:color chart-type)
+                (some #(when (= (:color picked) (:field %)) %)
+                      (candidates chart-type :color info)))]
+    {:chart-type chart-type :x x :y y :color color
      :ready? (and x (or y (not (:y chart-type))))}))
 
 (defn- show-chart-code!
@@ -808,11 +871,11 @@
     (when-let [i (str/index-of (.. view -state -doc toString) chart-start)]
       (.dispatch view #js {:effects (.scrollIntoView EditorView i #js {:y "start"})}))))
 
-(defn- write-chart! [chart-type x y]
+(defn- write-chart! [chart-type x y color]
   (let [code (workspace/current-file-text workspace 0)
         ;; code written before there was a `shown`: chart all the rows
         source (if (re-find #"\(def shown " code) "@shown" "rows")]
-    (workspace/replace-text! workspace 0 (with-chart-section code (chart-section chart-type x y source)))
+    (workspace/replace-text! workspace 0 (with-chart-section code (chart-section chart-type x y color source)))
     (show-chart-code!)))
 
 (def ^:private select-style
@@ -826,12 +889,14 @@
      [:select {:value (or (get-in current [slot :field]) "")
                :style select-style
                :on-change #(swap! choice assoc slot (.. % -target -value))}
+      (when (= slot :color)
+        [:option {:value ""} "nothing"])
       (for [{:keys [field label]} options]
         ^{:key field} [:option {:value field} label])]]))
 
 (defn- chart-builder [rows columns has-chart?]
   (let [info (columns-info rows columns)
-        {:keys [chart-type x y ready?] :as current} (chosen info)]
+        {:keys [chart-type x y color ready?] :as current} (chosen info)]
     [:div {:style {:display "flex" :flex-wrap "wrap" :align-items "center" :gap "6px"
                    :padding "6px 8px" :font-size "13px" :color "#57606a"
                    :border-bottom "1px solid #d0d7de" :background-color "#f6f8fa"}}
@@ -848,12 +913,12 @@
        ^{:key slot} [column-select slot current info])
      [c/button {:style {:padding "3px 10px" :font-size "13px"}
                 :disabled? (not ready?)
-                :on-click #(write-chart! chart-type x y)}
+                :on-click #(write-chart! chart-type x y color)}
       (if has-chart? "Replace chart" "Make chart")]
      (when has-chart?
        [c/button {:variant :secondary
                   :style {:padding "3px 10px" :font-size "13px"}
-                  :on-click #(write-chart! nil nil nil)}
+                  :on-click #(write-chart! nil nil nil nil)}
         "Remove chart"])]))
 
 ;; ---------------------------------------------------------------------------

@@ -89,7 +89,8 @@ for (let r = 0; r < runs; r++) {
     const delay = delayDays();
     const collected = runDay - delay * DAY;
     const weeksIn = (collected - weekStart(firstRun)) / (7 * DAY);
-    const reads = Math.round(Math.exp(normal(Math.log(1.1e6), 0.7)));
+    // (capped, so one huge sample doesn't squash every chart of it)
+    const reads = Math.round(Math.min(4.5e6, Math.exp(normal(Math.log(1.1e6), 0.7))));
     const q30 = Math.min(98.5, normal(91.5, 3.5));
     const depth = reads * between(0.0028, 0.0042);
     const contaminated = random() < 0.03;
