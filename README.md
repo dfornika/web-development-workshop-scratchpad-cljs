@@ -23,7 +23,8 @@ A ready-to-go ClojureScript ([shadow-cljs](https://github.com/thheller/shadow-cl
 | **Home** | What the workshop is, and how to use the site | |
 | **Session 1** | **Lesson**: the session's slides. **Homework**: exercises with live results | `src/main/scratchpad/sessions/session_1.cljs` and `session_1_bonus.cljs` |
 | **Session 2** | **Lesson**: Reagent and AG Grid. **Homework**: tables, and a mini QC dashboard | `src/main/scratchpad/sessions/session_2.cljs` and `session_2_bonus.cljs` |
-| **Sessions 3–4** | Coming soon | |
+| **Session 3** | **Lesson**: data, interface design, linked tables and charts, deploying. **Homework**: an AMR mutation dashboard | `src/main/scratchpad/sessions/session_3.cljs` and `session_3_bonus.cljs` |
+| **Session 4** | Coming soon | |
 | **Playground** | Your own page to experiment with | `src/main/scratchpad/playground.cljs` |
 | **Data Explorer** | Open a CSV file (it stays in your browser) and get an AG Grid table of it, plus the code that makes it, to edit live | (in the page) |
 | **Components** | Ready-made components, with editable examples, source and HTML | (read-only: `components.cljs`) |

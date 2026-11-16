@@ -28,7 +28,7 @@
   (if (= :web (:edition @db))
     [c/callout {:kind :info}
      [:strong "You're using the in-browser version. "]
-     "Nothing to install: the Session 1 homework and the Playground can be edited "
+     "Nothing to install: the session homework and the Playground can be edited "
      "right on the page. "
      "For the full setup - your own editor and a REPL - "
      [c/link {:href codespaces-url} "open the workshop in GitHub Codespaces"] "."]
@@ -78,7 +78,9 @@
      [session-card 2 "Reagent and AG Grid"
       "React and the virtual DOM, app state in one atom, and interactive tables with AG Grid. Homework: build a mini QC dashboard."
       true]
-     [session-card 3 "To be announced" "Details coming soon." false]
+     [session-card 3 "Building your web application"
+      "Loading data from a JSON file, designing the interface, linked tables and charts with AG Charts, and deploying. Homework: an AMR mutation dashboard."
+      true]
      [session-card 4 "To be announced" "Details coming soon." false]]]
 
    [c/section {:title "How to use this site"}

@@ -1,5 +1,5 @@
 (ns scratchpad.views.later-sessions
-  "Placeholder content for sessions 2-4."
+  "Placeholder content for sessions that aren't ready yet."
   (:require [scratchpad.components :as c]))
 
 (defn lesson

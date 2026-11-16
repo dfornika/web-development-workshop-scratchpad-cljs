@@ -13,9 +13,11 @@
             [scratchpad.views.repl-guide :as repl-guide]
             [scratchpad.views.lessons.session-1 :as lesson-1]
             [scratchpad.views.lessons.session-2 :as lesson-2]
+            [scratchpad.views.lessons.session-3 :as lesson-3]
             [scratchpad.views.session :as session]
             [scratchpad.views.session-1 :as session-1]
             [scratchpad.views.session-2 :as session-2]
+            [scratchpad.views.session-3 :as session-3]
             [scratchpad.views.later-sessions :as later-sessions]
             [scratchpad.views.taps :as taps]))
 
@@ -46,7 +48,7 @@
   "Top-level app component. `overrides` (optional) maps a page id to a
   different component to show for that page - the in-browser build uses
   it to swap in its editable Playground and session homework (as
-  :session-1-homework, :session-2-homework)."
+  :session-1-homework, :session-2-homework, :session-3-homework)."
   ([] (app {}))
   ([overrides]
    (let [{:keys [view subview]} @db
@@ -66,8 +68,9 @@
           :session-2 [session/page 2 {:lesson [lesson-2/page]
                                       :homework (get overrides :session-2-homework
                                                      [session-2/page])}]
-          :session-3 [session/page 3 {:lesson [later-sessions/lesson 3]
-                                      :homework [later-sessions/homework 3]}]
+          :session-3 [session/page 3 {:lesson [lesson-3/page]
+                                      :homework (get overrides :session-3-homework
+                                                     [session-3/page])}]
           :session-4 [session/page 4 {:lesson [later-sessions/lesson 4]
                                       :homework [later-sessions/homework 4]}]
           :playground [playground/page]

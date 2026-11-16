@@ -5,6 +5,7 @@
             [scratchpad.views.session :as session]
             [scratchpad.views.session-1 :as session-1]
             [scratchpad.views.session-2 :as session-2]
+            [scratchpad.views.session-3 :as session-3]
             [scratchpad.web.sci :as sci]
             [scratchpad.web.workspace :as workspace]
             [shadow.resource :as rc]))
@@ -32,7 +33,17 @@
                             :path "sessions/session_2_bonus.cljs"
                             :source (rc/inline "scratchpad/sessions/session_2_bonus.cljs")}]})
       :files session-2/files
-      :page session-2/page}})
+      :page session-2/page}
+   3 {:workspace (workspace/make
+                  {:id "session-3"
+                   :files [{:name "session_3.cljs"
+                            :path "sessions/session_3.cljs"
+                            :source (rc/inline "scratchpad/sessions/session_3.cljs")}
+                           {:name "session_3_bonus.cljs"
+                            :path "sessions/session_3_bonus.cljs"
+                            :source (rc/inline "scratchpad/sessions/session_3_bonus.cljs")}]})
+      :files session-3/files
+      :page session-3/page}})
 
 (defn init!
   "Load every session's homework files, so all the pages work straight away."
