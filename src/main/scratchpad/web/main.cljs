@@ -15,7 +15,8 @@
 (def overrides
   {:playground [web-playground/page]
    :session-1-homework [web-homework/page 1]
-   :session-2-homework [web-homework/page 2]})
+   :session-2-homework [web-homework/page 2]
+   :session-3-homework [web-homework/page 3]})
 
 (defn render []
   (rdomc/render @root [app/app overrides]))
